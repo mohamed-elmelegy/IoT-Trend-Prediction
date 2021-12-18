@@ -1,20 +1,22 @@
 #! /usr/bin/node
 "use strict";
 
-const njs = require("./arima.js");
+const np = require("./numpy.js");
+const pd = require("./pandas");
+// const LinearRegression = require("./linreg");
 
-console.log(typeof (njs));
-console.dir(njs);
-let x = njs.array([2, 3]);
-x = njs.ones(4);
-// console.log(x);
-// x= njs.zeros([3, 3]);
-// console.log(x);
-console.log(x, njs.diag(x, 1));
+/**
+ * TODO the query on MoT returns a list of objects, so it is advised to convert
+ * them to a DataFrame for easier manipulation
+ */
 
-x = njs.array([[3, 1], [1, 2]]);
-
-
-// console.log(x, x.add(1));
-
-console.log(x, njs.diag(x));
+var dataList = [
+    {
+        "TimeStamp": new Date("1995-05-02"),
+        "value": 42
+    },
+    {
+        "TimeStamp": new Date("2021-05-02"),
+        "value": 32
+    }
+]
