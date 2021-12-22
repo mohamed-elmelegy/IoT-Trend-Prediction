@@ -19,4 +19,18 @@ var dataList = [
         "TimeStamp": new Date("2021-05-02"),
         "value": 32
     }
-]
+];
+// console.log(dataList);
+var x = {};
+dataList.forEach(el => {
+    for (var [key, val] of Object.entries(el)) {
+        // console.log(`${key}:${val}`);
+        x[key] = (x[key] == undefined) ? [val] : [...x[key], val];
+    }
+});
+console.log(x);
+var y = new pd.DataFrame(x);
+// console.log(y.dtypes);
+y.forEach(el => {
+    console.log(el);
+});

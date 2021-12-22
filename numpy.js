@@ -398,7 +398,7 @@ function arange(start, end, step) {
 		.filter(el =>
 			!((el - start) % step)
 		);
-	return (step > 0) ? res : res.reverse();
+	return (step >= 0) ? res : res.reverse();
 }
 
 /**
