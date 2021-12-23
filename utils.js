@@ -49,15 +49,3 @@ function diff(tensor, ord = 1) {
 	}
 	return self;
 }
-
-var test = tf.tensor1d([3, 3, 0, 2]);
-var d1 = diff(test);
-var d2 = diff(test, 2);
-console.log(d1.dataSync(), "\n---\n", d2.dataSync());
-// var test = [{ "T": 1, "V": 4 }, { T: 2, V: 5 }];
-// let [i, v] = convertTODO(test);
-// let ten = tf.tensor2d([i, v])
-// console.log(i);
-// console.log("---");
-// v.print();
-// ten.print();

@@ -3,7 +3,7 @@
 
 const np = require("./numpy.js");
 const pd = require("./pandas");
-// const LinearRegression = require("./linreg");
+const { GradientDescent } = require("./linreg");
 
 /**
  * TODO the query on MoT returns a list of objects, so it is advised to convert
@@ -11,26 +11,29 @@ const pd = require("./pandas");
  */
 
 var dataList = [
-    {
-        "TimeStamp": new Date("1995-05-02"),
-        "value": 42
-    },
-    {
-        "TimeStamp": new Date("2021-05-02"),
-        "value": 32
-    }
+	{
+		"TimeStamp": new Date("1995-05-02"),
+		"value": 42
+	},
+	{
+		"TimeStamp": new Date("2021-05-02"),
+		"value": 32
+	}
 ];
 // console.log(dataList);
 var x = {};
 dataList.forEach(el => {
-    for (var [key, val] of Object.entries(el)) {
-        // console.log(`${key}:${val}`);
-        x[key] = (x[key] == undefined) ? [val] : [...x[key], val];
-    }
+	for (var [key, val] of Object.entries(el)) {
+		// console.log(`${key}:${val}`);
+		x[key] = (x[key] == undefined) ? [val] : [...x[key], val];
+	}
 });
 console.log(x);
-var y = new pd.DataFrame(x);
-// console.log(y.dtypes);
-y.forEach(el => {
-    console.log(el);
+x = np.linspace(0, 20);
+let y = x.mul(-1).add(2);
+x = np.reshape(x, [x.length, 1]);
+let mod = new GradientDescent();
+mod = mod.fit(x, y, 4096);
+mod.then((res) => {
+	console.log(res._W);
 });

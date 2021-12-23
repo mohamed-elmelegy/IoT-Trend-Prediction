@@ -149,7 +149,7 @@ function diff(vector, order = 1) {
  */
 function ndim(vector) {
 	let dim = 0;
-	let self = Array.from(vector);
+	let self = [...vector];
 	for (dim = 0; self instanceof Array; dim++) {
 		self = self[0]; // FIXME array elements are not required to be the same here
 	}
@@ -168,9 +168,12 @@ function transpose(vector) {
 		return vector;
 	}
 	if (dim == 2) {
-		return vector[0].map((_, j) =>
-			vector.map((row) => row[j])
-		);
+		// return vector[0].map((_, j) =>
+		// 	vector.map((row) => row[j])
+		// );
+		return array(vector[0].map((_, j) =>
+			[...vector].map((row) => row[j])
+		));
 	}
 }
 
@@ -180,7 +183,7 @@ function transpose(vector) {
  * @returns 
  */
 function shape(vector) {
-	let self = Array.from(vector);
+	let self = [...vector];
 	const n = ndim(vector);
 	let shape = [vector.length]
 	for (let dim = 1; dim < n; dim++) {
@@ -232,7 +235,7 @@ function reshape(vector, size) {
 	vector = array(vector).flatten();
 	// FIXME keeping the largest array as ndarray, & internal arrays 
 	// as normal arrays
-	vector = Array.from(vector);
+	vector = [...vector];
 	let result = [];
 	size = size.reverse();
 	for (let idx = 0; idx < size.length - 1; idx++) {
@@ -299,7 +302,7 @@ function dot(a, b) {
 	b = transpose(b);
 	return a.map(row =>
 		b.map(col =>
-			sum(row.mul(col))
+			sum(array(row).mul(col))
 		)
 	);
 }
@@ -311,7 +314,7 @@ function dot(a, b) {
  * @returns 
  */
 function canBroadcast(a, b) {
-	let [i, j] = [Array.from(a).reverse(), Array.from(b).reverse()];
+	let [i, j] = [[...a].reverse(), [...b].reverse()];
 	[i, j] = (i.length >= j.length) ? [i, j] : [j, i];
 	var res = true;
 	j.map((el, idx) =>
@@ -401,6 +404,24 @@ function arange(start, end, step) {
 	return (step >= 0) ? res : res.reverse();
 }
 
+
+/**
+ * 
+ * @param {number} start 
+ * @param {number} stop 
+ * @param {number} num 
+ * @returns 
+ */
+function linspace(start, stop, num = 50) {
+	let step = (stop - start) / (num - 1);
+	let res = [];
+	for (let element = start; element < stop; element += step) {
+		// https://stackoverflow.com/questions/2221167/javascript-formatting-a-rounded-number-to-n-decimals
+		res.push(parseFloat(element.toFixed(8)));
+	}
+	return array(res);
+}
+
 /**
  * FIXME works for 2D arrays only
  * @param {Array} elements 
@@ -453,6 +474,7 @@ NDArray.prototype.iOperation = function (other, op) {
 			sThis
 		);
 	}
+	other = array(other);
 	let sOther = shape(other);
 	if (sThis.equalsTo(sOther)) {
 		other = other.flatten();
@@ -521,6 +543,11 @@ NDArray.prototype.equals = function (other) {
 	return this.iOperation(other, (a, b) => a == b);
 }
 
+/**
+ * 
+ * @param {NDArray} other 
+ * @returns 
+ */
 NDArray.prototype.power = function (other) {
 	return this.iOperation(other, (a, b) => a ** b);
 }
@@ -547,6 +574,12 @@ const linalg = {
 	}
 }
 
+const random = {
+	random: function (size) {
+		return reshape(empty(size).flatten().map(_ => Math.random()), size);
+	}
+}
+
 module.exports = {
-	array, empty, diff, dot, ndim, reshape, shape, sum, transpose, diag, ones, zeros, eye, arange, vstack, hstack, NDArray
+	array, empty, diff, dot, ndim, reshape, shape, sum, transpose, diag, ones, zeros, eye, arange, vstack, hstack, NDArray, linalg, linspace, random
 }

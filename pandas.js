@@ -1,15 +1,38 @@
 #! /usr/bin/node
+/**
+ * TODO fit the file for tensorflow
+ */
 "use strict";
+
 const np = require("./numpy");
+// const tf = require("@tensorflow/tfjs-node-gpu");
+const SECOND = 1000;
+const MINUTE = 60 * SECOND;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+const WEEK = 7 * DAY;
+// TODO MONTH_END, MONTH_START, ANNUAL
 
-// FIXME Series & DataFrame should be objects instead
-
-class Series extends np.NDArray {
-	_dtype = null;
+class Series extends np.NDArray { // could be replaced by tf.tensor1d
+	_dtype = undefined;
 	_index = null;
+	_name = null;
+
+	constructor(data = null, index = null, dtype = null, name = null) {
+		if (dtype == "datetime") {
+			super(...toDateTime(data));
+		} else {
+			super(...data);
+		}
+		this._index = index;
+		this._dtype = dtype;
+		this._name = name;
+	}
 
 	get dt() {
 		if (this.dtype === "datetime") {
+			// TODO using tf.Tensor is different
+			// 
 			return TimeSeries.from(this);
 		} else {
 			throw Error("dt available only for datetime values");
@@ -17,18 +40,17 @@ class Series extends np.NDArray {
 	}
 
 	get dtype() {
-		if ((this._dtype === null) || (this._dtype === undefined)) {
+		if (this.length &&
+			((this._dtype === null) || (this._dtype === undefined))) {
 			var el = this[0];
 			switch (typeof (el)) {
 				case "object":
 					if (el instanceof Date) {
-						// return "datetime";
 						this._dtype = "datetime";
 					}
 				// FIXME for additional possible data types
 				// } else if (false) {}
 				default:
-					// return typeof (el);
 					this._dtype = typeof (el);
 			}
 		}
@@ -40,8 +62,43 @@ class Series extends np.NDArray {
 	}
 
 	set index(arg) {
-		// TODO validate arg
+		if (arg.length != this.length) {
+			throw Error("Index length mismatch");
+		}
 		this._index = arg;
+	}
+
+	asFreq(
+		frequency,
+		method = null,
+		how = null,
+		normalise = false,
+		fill_value = null
+	) {
+		if (!(this._index instanceof TimeSeries)) {
+			throw Error("Invalid operation");
+		}
+		if (this._index.freq == frequency) {
+			return this;
+		}
+		// TODO have the frequency take effect
+		let res = this.slice();
+		switch (frequency) {
+			case "L":
+				break;
+			case "S":
+				break;
+			case "T":
+				break;
+			case "H":
+				break;
+			case "D":
+				break;
+			case "W":
+				break;
+			default:
+		}
+		return res;
 	}
 }
 
@@ -53,12 +110,30 @@ class TimeSeries extends Series {
 
 	get freq() {
 		// TODO calculate frequency
+		let periods = this.slice(1).sub(this.slice(0, -1));
+		switch (periods / (this.length - 1)) {
+			case 1:
+				this._freq = "L";
+				break;
+			case SECOND:
+				this._freq = "S";
+				break;
+			case MINUTE:
+				this._freq = "T";
+				break;
+			case HOUR:
+				this._freq = "H";
+				break;
+			case DAY:
+				this._freq = "D";
+				break;
+			case WEEK:
+				this._freq = "W";
+				break;
+			default:
+				this._freq = undefined;
+		}
 		return this._freq;
-	}
-
-	set freq(arg) {
-		this._freq = arg;
-		// TODO have the frequency take effect
 	}
 
 	get year() {
@@ -227,5 +302,8 @@ DataFrame.prototype.setIndex = function (arg) {
 }
 
 module.exports = {
-	toDateTime, Series: function (arr) { return Series.from(arr); }, DataFrame
+	toDateTime,
+	// Series: function (arr) { return Series.from(arr); },
+	DataFrame,
+	Series
 }
