@@ -19,10 +19,10 @@ function train(x, y) {
     }
     b1 = numerator / denominator
     b0 = y_mean - (b1 * x_mean)
-    return [b0,b1]
+    return [b0, b1]
 }
 
-function predict(x,weigths) {
+function predict(x, weigths) {
     return weigths[0] + weigths[1] * x;
 }
 
@@ -33,7 +33,7 @@ const x = tf.tensor1d([...Array(20)].map((_, i) => i));
 const y = tf.tensor1d([...Array(20)].map((_, i) => i * 3));
 
 
-weigths=train(x,y);
-y_pred=predict(10,weigths);
+weigths = train(x, y);
+y_pred = predict(10, weigths);
 
 console.log(y_pred);
