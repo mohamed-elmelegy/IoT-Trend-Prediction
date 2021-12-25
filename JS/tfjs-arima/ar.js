@@ -11,7 +11,8 @@ function pShift(p, X) {
     while (shift <= p) {
         let shiftedX = [];
         for (let k = 0; k < shift; k++) {
-            shiftedX.push(NaN);
+            // Add temporary 0 instead of NAN... TODO: Input Data should be cleaned
+            shiftedX.push(0);
         }
         for (let i = 0; i < outputArray.length - shift; i++) {
             shiftedX.push(X[i]);
@@ -27,37 +28,47 @@ function pShift(p, X) {
 }
 
 function buildModel(inputShape, optimizer, loss, metrics) {
-    console.log(inputShape);
-    const model = tf.sequential();
-    model.add(tf.layers.dense({ units: 1, inputShape: [3, 100] }));
+    // Define input, which has a size of inputShape
+    const inputLayer = tf.input({shape: inputShape});
+
+    // Output dense layer uses linear activation.
+    const denseLayer1 = tf.layers.dense({units: 1});
+
+    // Obtain the output symbolic tensor by applying the layers on the inputLayer.
+    const output = denseLayer1.apply(inputLayer);
+
+    // Create the model based on the inputs.
+    const model = tf.model({inputs: inputLayer, outputs: output});
+
     model.compile({
         optimizer: optimizer,
         loss: loss,
         metrics: metrics,
     });
+    model.summary();
 
     return model
 }
 
-function fit(model, X, y, epochs = 100, batchSize = 32, validationSplit = 0.20) {
-    X = tf.tensor(X);
-    y = tf.tensor(y);
-    model.fit(X, y, {
+async function fit(model, X, y, epochs = 100, batchSize = 32, validationSplit = 0.20) {
+    const modelFit = await model.fit(X, y, {
         batchSize: batchSize,
-        epochs: 100,
+        epochs: epochs,
         shuffle: true,
         validationSplit: validationSplit
     });
-
-    return model;
+    return modelFit;
 }
 
-function predict(model, X) {
-    return model.predict(X);
+function predict(model, data, steps=1) {
+    X = data.slice([data.shape[0]-1], 1);
+    X.print();
+    const modelPred = model.predict(X);
+    return modelPred;
 }
 
 function evaluate(yTrue, yPred, fn) {
-    return true
+    return fn(yTrue, yPred);
 }
 
 module.exports = {
