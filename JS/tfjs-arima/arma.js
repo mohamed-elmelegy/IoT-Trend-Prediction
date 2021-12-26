@@ -36,7 +36,9 @@ function AR(p = 0, data) {
     function dataHandleSync() {
         let [arr_X, arr_y] = ar.pShift(p, data);
         let X = tf.tensor(arr_X).transpose();
-        let y = tf.tensor(arr_y).reshape([-1,1]);
+        let y = tf.tensor(arr_y).reshape([-1, 1]);
+        X.print();
+        y.print();
         modelParams = {
             "X": X,
             "y": y,
@@ -44,8 +46,8 @@ function AR(p = 0, data) {
             "optimizer": tf.train.adam(0.01),
             "loss": "meanSquaredError",
             "metrics": [tf.metrics.meanSquaredError],
-            "epochs": 100, 
-            "batchSize": 10, 
+            "epochs": 100,
+            "batchSize": 10,
             "validationSplit": 0.10
         };
         return modelParams;
@@ -55,16 +57,16 @@ function AR(p = 0, data) {
         return Promise.resolve(dataHandleSync());
     }
 
-/* 
-    TODO: 
-    To Be Cont'd In AR:
-    -------------------
-    1) Predict with input steps not just the next one only
-    2) Using Danfo.js in any preprocessing
-    3) Change it all to Object Oriented Style
-    4) Change it to be more asynchronous
-    5) Follow JS coding standards, Document all functions, leave more comments
- */
+    /* 
+        TODO: 
+        To Be Cont'd In AR:
+        -------------------
+        1) Predict with input steps not just the next one only
+        2) Using Danfo.js in any preprocessing
+        3) Change it all to Object Oriented Style
+        4) Change it to be more asynchronous
+        5) Follow JS coding standards, Document all functions, leave more comments
+     */
 
 }
 
