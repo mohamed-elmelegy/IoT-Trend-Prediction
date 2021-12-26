@@ -4,6 +4,7 @@
 const np = require("./numpy.js");
 const pd = require("./pandas");
 const { GradientDescent } = require("./linreg");
+const { model } = require("@tensorflow/tfjs-node-gpu");
 
 /**
  * TODO the query on MoT returns a list of objects, so it is advised to convert

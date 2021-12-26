@@ -127,8 +127,7 @@ class GradientDescent {
 				if (!Math.abs(parseInt((costOld - costCurrent) / stopThreshold))
 					|| !parseInt(np.linalg.norm(batchGrad) / stopThreshold)
 				) {
-					console.log(epoch);
-					break;
+					return;
 				} else {
 					costOld = costCurrent;
 				}
