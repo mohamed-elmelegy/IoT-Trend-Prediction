@@ -7,9 +7,6 @@
 const np = require("./numpy");
 // const tf = require("@tensorflow/tfjs-node-gpu");
 
-/**
- * 
- */
 class GradientDescent {
 	/**
 	 * 
@@ -60,11 +57,6 @@ class GradientDescent {
 		return this._gamma;
 	}
 
-	// _costFn(labels, predictions, m = null) {
-	// 	m = 2 * ((m) ? m : labels.length);
-	// 	return np.sum(labels.sub(predictions).power(2)) / m;
-	// }
-
 	/**
 	 * 
 	 * @param {NDArray} X 
@@ -94,26 +86,16 @@ class GradientDescent {
 	}
 
 	fitSync(X, y, maxIter = 1024, stopThreshold = 1e-6) {
-		// TODO fit-me
 		// let ut = 0 // TODO support adaptive grad
 		let n = y.length;
 		this._b = (this._b) ? this._b : n;
-		// let t1 = y.slice(-this._b);
-		// let t2 = np.zeros([this._b]);
-		// this._costFn(t1, t2, this._b);
-		// let costOld = this._costFn(t1, t2, this.b_);
 		let costOld = this._costFn(y.slice(-this._b), np.zeros([this._b]), this._b);
 		X = np.hstack([np.ones([X.length, 1]), X]);
 		y = np.reshape(y, [n, 1]);
 		if (!this._W) {
-			// this._W = np.zeros([np.shape(X)[1], 1]);
 			this._W = np.random.random([np.shape(X)[1], 1]);
 		}
-		// let indices = np.arange(0, n, this._b);
 		for (let epoch = 0; epoch < maxIter; epoch++) {
-			// for (let idx = 0; idx < indices.length - 1; idx++) {
-			// 	let start = indices[idx];
-			// 	let end = indices[idx + 1];
 			for (let start = 0; start < n; start += this._b) {
 				let end = start + this._b;
 				let batchX = X.slice(start, end);
@@ -122,7 +104,6 @@ class GradientDescent {
 				let batchGrad = this._grad(batchX, batchY, batchPreds);
 				// TODO add nesterov update
 				this._update(batchGrad, (this._b > 1) ? this._b : n); // TODO use ut for adaptive
-				// batchPreds = this.evaluate(batchX);
 				let costCurrent = this._costFn(batchY, batchPreds, this._b);
 				if (!Math.abs(parseInt((costOld - costCurrent) / stopThreshold))
 					|| !parseInt(np.linalg.norm(batchGrad) / stopThreshold)

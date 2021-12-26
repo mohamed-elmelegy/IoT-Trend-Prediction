@@ -561,6 +561,12 @@ NDArray.prototype.flatten = function () {
 }
 
 const linalg = {
+	/**
+	 * 
+	 * @param {NDArray} vector 
+	 * @param {number} ord 
+	 * @returns 
+	 */
 	norm: function (vector, ord = 2) {
 		// FIXME edge cases
 		if (ord === Infinity) {
@@ -575,11 +581,21 @@ const linalg = {
 }
 
 const random = {
+	/**
+	 * 
+	 * @param {Array} size 
+	 * @returns 
+	 */
 	random: function (size) {
-		return reshape(empty(size).flatten().map(_ => Math.random()), size);
+		return reshape(empty(size).flatten()
+			.map(_ =>
+				Math.random()
+			),
+			size);
 	}
 }
 
 module.exports = {
-	array, empty, diff, dot, ndim, reshape, shape, sum, transpose, diag, ones, zeros, eye, arange, vstack, hstack, NDArray, linalg, linspace, random
+	array, empty, diff, dot, ndim, reshape, shape, sum, transpose, diag, ones,
+	zeros, eye, arange, vstack, hstack, NDArray, linalg, linspace, random
 }
