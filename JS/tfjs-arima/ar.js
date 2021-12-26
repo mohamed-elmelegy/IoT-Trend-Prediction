@@ -29,16 +29,16 @@ function pShift(p, X) {
 
 function buildModel(inputShape, optimizer, loss, metrics) {
     // Define input, which has a size of inputShape
-    const inputLayer = tf.input({shape: inputShape});
+    const inputLayer = tf.input({ shape: inputShape });
 
     // Output dense layer uses linear activation.
-    const denseLayer1 = tf.layers.dense({units: 1});
+    const denseLayer1 = tf.layers.dense({ units: 1 });
 
     // Obtain the output symbolic tensor by applying the layers on the inputLayer.
     const output = denseLayer1.apply(inputLayer);
 
     // Create the model based on the inputs.
-    const model = tf.model({inputs: inputLayer, outputs: output});
+    const model = tf.model({ inputs: inputLayer, outputs: output });
 
     model.compile({
         optimizer: optimizer,
@@ -54,17 +54,21 @@ async function fit(model, X, y, epochs = 100, batchSize = 32, validationSplit = 
     const modelFit = await model.fit(X, y, {
         batchSize: batchSize,
         epochs: epochs,
-        shuffle: true,
+        shuffle: false,
         validationSplit: validationSplit
     });
     return modelFit;
 }
 
-function predict(model, data, steps=1) {
-    X = data.slice([data.shape[0]-1], 1);
-    X.print();
-    const modelPred = model.predict(X);
-    return modelPred;
+function predict(model, labels, p, steps = 1) {
+    res = labels.slice(-p);
+    const shape = [1, p];
+    for (let s = 0; s < steps; s++) {
+        features = tf.tensor(res.slice(-p)).reshape(shape);
+        yHat = model.predict(features).arraySync();
+        res.push(yHat[0]);
+    }
+    return res.slice(-steps);
 }
 
 function evaluate(yTrue, yPred, fn) {
