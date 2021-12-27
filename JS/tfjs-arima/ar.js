@@ -55,7 +55,8 @@ async function fit(model, X, y, epochs = 100, batchSize = 32, validationSplit = 
         batchSize: batchSize,
         epochs: epochs,
         shuffle: false,
-        validationSplit: validationSplit
+        validationSplit: validationSplit,
+        verbose: 0,
     });
     return modelFit;
 }
