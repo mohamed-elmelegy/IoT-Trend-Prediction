@@ -5,7 +5,6 @@
 "use strict";
 
 const np = require("./numpy");
-// const tf = require("@tensorflow/tfjs-node-gpu");
 
 class GradientDescent {
 	/**
@@ -29,14 +28,12 @@ class GradientDescent {
 		this._grad = kwargs["gradient"];
 		if (!this._grad) {
 			this._grad = function (X, y, yHat) {
-				// let error = y.sub(yHat);
 				let error = yHat.sub(y);
 				return np.dot(np.transpose(X), error);
 			}
 		}
 		// TODO nesterov update
 		this._update = (kwargs["nesterov"]) ? this.updateNesterov : function (gradient, m, vt1 = 0) {
-			// this._W -= this.vt(gradient, m, vt1);
 			this._W = this._W.sub(this.vt(gradient, m, vt1));
 		};
 	}
@@ -57,6 +54,10 @@ class GradientDescent {
 		return this._gamma;
 	}
 
+	get _coef() {
+		return this._W;
+	}
+
 	/**
 	 * 
 	 * @param {NDArray} X 
@@ -72,8 +73,9 @@ class GradientDescent {
 	}
 
 	vt(gradient, m, vt1 = 0) {
-		// this._gamma * vt1 + 
-		return gradient.mul(this._alpha).div(m).add(this._gamma * vt1);
+		return gradient.mul(this._alpha)
+			.div(m)
+			.add(this._gamma * vt1);
 	}
 
 	/**
@@ -82,7 +84,13 @@ class GradientDescent {
 	 * @returns 
 	 */
 	async predict(X) {
-		return await Promise.resolve(this.evaluate(X));
+		let features = X.slice();
+		if (np.ndim(features) == 1) {
+			features = np.reshape(features, [-1, 1]);
+		}
+		features = [np.ones([np.shape(features)[1], 1]), features];
+		features = np.hstack(features);
+		return this.evaluate(features);
 	}
 
 	fitSync(X, y, maxIter = 1024, stopThreshold = 1e-6) {
@@ -126,7 +134,7 @@ class GradientDescent {
 	 */
 	async fit(X, y, maxIter = 1024, stopThreshold = 1e-6) {
 		// TODO flag to tell fit is done
-		await this.fitSync(X, y, maxIter, stopThreshold);
+		this.fitSync(X, y, maxIter, stopThreshold);
 		return this;
 	}
 }

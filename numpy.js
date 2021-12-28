@@ -43,7 +43,6 @@ function empty(size) {
 			.reduce((p, el) =>
 				p * el
 			);
-		// return reshape(array(Array(p)), size);
 		return reshape(Array(p), size);
 	}
 }
@@ -231,7 +230,6 @@ function reshape(vector, size) {
 	} else if (tSize != oSize) {
 		throw Error("Incompatible shapes");
 	}
-	// vector = array(vector).flatten();
 	vector = array(vector).flatten();
 	// FIXME keeping the largest array as ndarray, & internal arrays 
 	// as normal arrays
@@ -431,9 +429,9 @@ function vstack(elements) {
 	let res = [];
 	let size = shape(elements[0]);
 	if (size.length == 1) {
-		elements.forEach(el => res.push(el));
+		elements.forEach(el => res.push([...el]));
 	} else {
-		elements.forEach(el => res.push(...el));
+		elements.forEach(el => res.push(...[...el]));
 	}
 	return array(res);
 }
@@ -449,7 +447,7 @@ function hstack(elements) {
 	if (ndim(elements[0]) == 1) {
 		res = [];
 		elements.forEach(el => {
-			res.push(...el)
+			res.push(...[...el])
 		});
 		return array(res);
 	}
@@ -587,6 +585,9 @@ const random = {
 	 * @returns 
 	 */
 	random: function (size) {
+		if (!size) {
+			return Math.random();
+		}
 		return reshape(empty(size).flatten()
 			.map(_ =>
 				Math.random()

@@ -4,7 +4,7 @@
 const np = require("./numpy.js");
 const pd = require("./pandas");
 const { GradientDescent } = require("./linreg");
-const { model } = require("@tensorflow/tfjs-node-gpu");
+// const { model } = require("@tensorflow/tfjs-node-gpu");
 
 /**
  * TODO the query on MoT returns a list of objects, so it is advised to convert
@@ -37,4 +37,6 @@ let mod = new GradientDescent();
 mod = mod.fit(x, y, 4096);
 mod.then((res) => {
 	console.log(res._W);
-});
+	let i = np.array([21]);
+	return res.predict(i);
+}).then(console.log);
