@@ -16,7 +16,7 @@ let params = {
     shuffle: false
 };
 arima.fit(X, params).then(() => {
-    console.log(arima.predictSync(Array(5)));
-}).catch(err =>
+    return arima.predict(Array(5));
+}).then(console.log).catch(err =>
     console.error(err)
 );
