@@ -29,6 +29,7 @@ class AutoRegression {
 	 */
 	fit(X, params = {}) {
 		let [features, labels] = AutoRegression.pShift(this._p, X);
+		this._keptFeatures = X.slice(-1 * this._p + 1);
 
 		// FIXME cross-validation might be required
 		// TODO for cross validation: https://js.tensorflow.org/api/latest/#tf.LayersModel.fit
@@ -37,8 +38,6 @@ class AutoRegression {
 			"meanSquaredError",
 			[tf.metrics.meanSquaredError]
 		);
-
-		this._keptFeatures = X.slice(-this._p);
 
 		return this.model.fit(features, labels, params);
 	}
@@ -64,11 +63,12 @@ class AutoRegression {
 			return this.model.predict(X).reshape([-1, 1]).arraySync();
 		}
 		let res = this._keptFeatures;
-		const shape = [1, this._p];
+		const arShape = [1, this._p + 1];
+		const arSlice = -1 * arShape[1];
 		// TODO X should be a tensor of timestamp, then converted to periods
 		let steps = AutoRegression.calculatePeriods(X); // FIXME steps should be calculated
 		for (let s = 0; s < steps; s++) {
-			let features = tf.tensor(res.slice(-this._p)).reshape(shape);
+			let features = tf.tensor(res.slice(arSlice)).reshape(arShape);
 			let yHat = this.model.predict(features).arraySync();
 			res.push(yHat[0]);
 		}
@@ -94,14 +94,16 @@ class AutoRegression {
 	static pShift(p, X) {
 		if (p <= 0) {
 			return [
-				tf.tensor(X),
-				tf.tensor(X)
+				tf.tensor(X).reshape([-1, 1]),
+				tf.tensor(X).reshape([-1, 1])
 			];
 		}
-		let shift = 1;
+		const featureShape = [X.length, p + 1];
+		const labelShape = [-1, 1];
+		let shift = 0;
 		let shiftedXs = [];
-		let inputArray = [...X];
 		let outputArray = [...X];
+		
 		// TODO[danfojs]: replace this with danfojs
 		while (shift <= p) {
 			let shiftedX = [];
@@ -119,8 +121,8 @@ class AutoRegression {
 		}
 
 		return [
-			tf.tensor(shiftedXs).transpose(),
-			tf.tensor(inputArray).reshape([-1, 1])
+			tf.tensor(shiftedXs).reshape(featureShape),
+			tf.tensor([...X]).reshape(labelShape)
 		];
 	}
 
@@ -184,7 +186,6 @@ class MovingAverage {
 
 	fit(X, params = {}) {
 		let [features, labels] = MovingAverage.qShift(this._q, X);
-
 		this.buildModel([features.shape[1]],
 			tf.train.adam(0.01),
 			"meanSquaredError",
@@ -247,14 +248,16 @@ class MovingAverage {
 	 static qShift(q, X) {
 		if (q <= 0) {
 			return [
-				tf.tensor(X),
-				tf.tensor(X)
+				tf.tensor(X).reshape([-1, 1]),
+				tf.tensor(X).reshape([-1, 1])
 			];
 		}
-		let shift = 1;
+		const featureShape = [X.length, q + 1];
+		const labelShape = [-1, 1];
+		let shift = 0;
 		let shiftedXs = [];
-		let inputArray = [...X];
 		let outputArray = [...X];
+
 		// TODO[danfojs]: replace this with danfojs
 		while (shift <= q) {
 			let shiftedX = [];
@@ -272,8 +275,8 @@ class MovingAverage {
 		}
 
 		return [
-			tf.tensor(shiftedXs).transpose(),
-			tf.tensor(inputArray).reshape([-1, 1])
+			tf.tensor(shiftedXs).reshape(featureShape),
+			tf.tensor([...X]).reshape(labelShape)
 		];
 	}
 	
@@ -346,14 +349,7 @@ class ARIMA {
 
 			// Fitting MovingAverage (MA) Part
 			this.maModel.fit(residuals, params);
-			// .then(() => {
-			// 	let [features, labels] = MovingAverage.qShift(this._q, residuals);
-			// 	let maPreds = this.maModel.predictSync(features, true);
-			// 	console.warn(maPreds);
-			// });
-		}).catch(err =>
-			console.error(err)
-		);
+		});
 	}
 
 	fit(X, params = {}) {
@@ -366,32 +362,42 @@ class ARIMA {
 	 * @returns 
 	 */
 	predictSync(X) {
-		let values = this._keptFeatures;
-		const arShape = [1, this._p];
+		let arFeatures = [...this._keptFeatures];
+		let arShape = [1, this._p + 1];
+		const arSlice = -1 * arShape[1];
+		if (this._p <= 0) {
+			arFeatures = this._keptFeatures.slice(-1);
+			arShape = [-1];
+		}
 		// TODO X should be a tensor of timestamp, then converted to periods
 		let steps = AutoRegression.calculatePeriods(X); // FIXME steps should be calculated
 		for (let s = 0; s < steps; s++) {
-			let features = tf.tensor(values.slice(-this._p)).reshape(arShape);
+			let features = tf.tensor(arFeatures.slice(arSlice)).reshape(arShape);
 			let yHat = this.arModel.predictSync(features, true);
-			values.push(yHat[0]);
+			arFeatures.push(yHat[0][0]);
 		}
-		let arPreds = tf.tensor(values.slice(-steps)).reshape([1, steps]);
-		
+		let arPreds = tf.tensor(arFeatures.slice(-steps)).reshape([1, steps]);
+
+		let maFeatures = [...this._keptFeatures];
 		let movingAvgs = [];
-		const length = this._keptFeatures.length;
+		const length = maFeatures.length;
 		for(let i=this._q; i < length; i++) {
 			const qSlice = this._keptFeatures.slice(i, length);
 			movingAvgs.push(tf.mean(qSlice).arraySync());
 		}
 		let residuals = tf.sub(arPreds, movingAvgs.slice(-steps)).arraySync();
-		const maShape = [1, this._q];
+		let maShape = [1, this._q + 1];
+		const maSlice = -1 * maShape[1];
+		if (this._q <= 0) {
+			maShape = [-1];
+		}
 		for (let s = 0; s < steps; s++) {
-			let features = tf.tensor(residuals[0].slice(-this._q)).reshape(maShape);
+			let features = tf.tensor(residuals[0].slice(maSlice)).reshape(maShape);
 			let yHat = this.maModel.predictSync(features, true);
 			residuals.push(yHat[0]);
 		}
 		let maPreds = tf.tensor(residuals.slice(-steps)).reshape([1, steps]);
-		let armaPreds = tf.add(arPreds, maPreds).reshape([-1]).arraySync();
+		let armaPreds = tf.add(arPreds, maPreds).arraySync();
 		
 		return armaPreds;
 	}

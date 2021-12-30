@@ -10,13 +10,17 @@ const { AR, ARIMA } = require("./arima");
 let X = tf.linspace(1, 50, 50).arraySync();
 let arima = ARIMA(2, 0, 2);
 let params = {
-    epochs: 500,
+    epochs: 256,
     batchSize: 10,
     validationSplit: .2,
-    shuffle: false
+    shuffle: false,
+    verbose: 0
 };
 arima.fit(X, params).then(() => {
-    console.log("Final ARMA Predictions: ", arima.predictSync(Array(5)));
+    console.log(
+        "Final ARIMA(" + arima.p + ", " + arima.d + ", " + arima.q + ") Predictions: ", 
+        arima.predictSync(Array(5))
+    );
 }).catch(err =>
     console.error(err)
 );
