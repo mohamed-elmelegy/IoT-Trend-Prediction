@@ -15,9 +15,8 @@ let params = {
     validationSplit: .2,
     shuffle: false
 };
-arima.fit(X, params)
-// .then(() => {
-//     console.log(arima.predictSync(Array(5)));
-// }).catch(err =>
-//     console.error(err)
-// );
+arima.fit(X, params).then(() => {
+    console.log("Final ARMA Predictions: ", arima.predictSync(Array(5)));
+}).catch(err =>
+    console.error(err)
+);

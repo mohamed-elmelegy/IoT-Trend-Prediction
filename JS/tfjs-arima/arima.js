@@ -334,10 +334,10 @@ class ARIMA {
 		return this._d;
 	}
 
-	fit(X, params = {}) {
+	fitSync(X, params = {}) {
 		this._keptFeatures = X;
 		// Fitting AutoRegression(AR) Part
-		this.arModel.fit(X, params).then(() => {
+		return this.arModel.fit(X, params).then(() => {
 			let [features, labels] = AutoRegression.pShift(this._p, X);
 			
 			// Getting residuals (Noise) from AR
@@ -345,17 +345,21 @@ class ARIMA {
 			let residuals = tf.sub(labels, arPreds).arraySync();
 
 			// Fitting MovingAverage (MA) Part
-			this.maModel.fit(residuals, params).then(() => {
-				let [features, labels] = MovingAverage.qShift(this._q, residuals);
-				let maPreds = this.maModel.predictSync(features, true);
-				// console.warn(maPreds);
-			});
-		}).then(() => {
-			this.predictSync(Array(5));
+			this.maModel.fit(residuals, params);
+			// .then(() => {
+			// 	let [features, labels] = MovingAverage.qShift(this._q, residuals);
+			// 	let maPreds = this.maModel.predictSync(features, true);
+			// 	console.warn(maPreds);
+			// });
 		}).catch(err =>
 			console.error(err)
 		);
 	}
+
+	fit(X, params = {}) {
+		return Promise.resolve(this.fitSync(X, params));
+	}
+
 	/**
 	 * 
 	 * @param {Array|tfjs.Tensor} X 
@@ -379,8 +383,7 @@ class ARIMA {
 			const qSlice = this._keptFeatures.slice(i, length);
 			movingAvgs.push(tf.mean(qSlice).arraySync());
 		}
-		movingAvgs = tf.tensor(movingAvgs.slice(-steps)).reshape([1, steps]);
-		let residuals = tf.sub(arPreds, movingAvgs).arraySync();
+		let residuals = tf.sub(arPreds, movingAvgs.slice(-steps)).arraySync();
 		const maShape = [1, this._q];
 		for (let s = 0; s < steps; s++) {
 			let features = tf.tensor(residuals[0].slice(-this._q)).reshape(maShape);
@@ -388,7 +391,9 @@ class ARIMA {
 			residuals.push(yHat[0]);
 		}
 		let maPreds = tf.tensor(residuals.slice(-steps)).reshape([1, steps]);
-		return tf.add(arPreds, maPreds).arraySync();
+		let armaPreds = tf.add(arPreds, maPreds).reshape([-1]).arraySync();
+		
+		return armaPreds;
 	}
 
 	predict(toPredict) {
