@@ -16,7 +16,9 @@ Array.prototype.equalsTo = function (other) {
  * 
  */
 class NDArray extends Array {
-
+	get T() {
+		return transpose(this);
+	}
 }
 
 /**
@@ -139,6 +141,25 @@ function diff(vector, order = 1) {
 		);
 	}
 	return self;
+}
+
+/**
+ * FIXME does not work with axis
+ * @param {Array|NDArray} vector 
+ * @returns 
+ */
+function cumsum(vector) {
+	var total = 0;
+	return vector.map((el) => total += el);
+}
+
+/**
+ * FIXME does not work with axis
+ * @param {Array|NDArray} vector 
+ * @returns 
+ */
+function mean(vector) {
+	return sum(array(vector)) / vector.length;
 }
 
 /**
@@ -598,5 +619,6 @@ const random = {
 
 module.exports = {
 	array, empty, diff, dot, ndim, reshape, shape, sum, transpose, diag, ones,
-	zeros, eye, arange, vstack, hstack, NDArray, linalg, linspace, random
+	zeros, eye, arange, vstack, hstack, NDArray, linalg, linspace, random,
+	cumsum, mean
 }

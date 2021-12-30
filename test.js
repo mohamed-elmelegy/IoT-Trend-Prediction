@@ -2,9 +2,10 @@
 "use strict";
 
 const np = require("./numpy.js");
-const pd = require("./pandas");
-const { GradientDescent } = require("./linreg");
-// const { model } = require("@tensorflow/tfjs-node-gpu");
+// const pd = require("./pandas");
+// const { GradientDescent } = require("./linreg");
+const { ARIMA } = require("./arima");
+
 
 /**
  * TODO the query on MoT returns a list of objects, so it is advised to convert
@@ -21,7 +22,6 @@ var dataList = [
 		"value": 32
 	}
 ];
-// console.log(dataList);
 var x = {};
 dataList.forEach(el => {
 	for (var [key, val] of Object.entries(el)) {
@@ -29,14 +29,13 @@ dataList.forEach(el => {
 		x[key] = (x[key] == undefined) ? [val] : [...x[key], val];
 	}
 });
-console.log(x);
-x = np.linspace(0, 20);
-let y = x.mul(-1).add(2);
-x = np.reshape(x, [x.length, 1]);
-let mod = new GradientDescent();
-mod = mod.fit(x, y, 4096);
-mod.then((res) => {
-	console.log(res._W);
-	let i = np.array([21]);
-	return res.predict(i);
-}).then(console.log);
+var x = np.linspace(0, 20);
+var y = x.slice(0, -2);
+var arima = ARIMA(1, 1, 1);
+arima.fit(y).then(model => {
+	return model.predict(2);
+}).then(console.log).catch(err => {
+	console.error(err)
+}).finally(() => {
+	console.log(x.slice(-2));
+});

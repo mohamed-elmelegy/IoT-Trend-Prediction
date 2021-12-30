@@ -28,7 +28,7 @@ class GradientDescent {
 		this._grad = kwargs["gradient"];
 		if (!this._grad) {
 			this._grad = function (X, y, yHat) {
-				let error = yHat.sub(y);
+				var error = yHat.sub(y);
 				return np.dot(np.transpose(X), error);
 			}
 		}
@@ -84,7 +84,7 @@ class GradientDescent {
 	 * @returns 
 	 */
 	async predict(X) {
-		let features = X.slice();
+		var features = X.slice();
 		if (np.ndim(features) == 1) {
 			features = np.reshape(features, [-1, 1]);
 		}
@@ -95,33 +95,50 @@ class GradientDescent {
 
 	fitSync(X, y, maxIter = 1024, stopThreshold = 1e-6) {
 		// let ut = 0 // TODO support adaptive grad
-		let n = y.length;
-		this._b = (this._b) ? this._b : n;
-		let costOld = this._costFn(y.slice(-this._b), np.zeros([this._b]), this._b);
+		var costOld;
+		({ costOld, y, X } = this._fitInit(X, y));
+		for (let epoch = 0; epoch < maxIter; epoch++) {
+			var [yBatch, yHatBatch, gradientBatch] = this._runEpoch(X, y);
+			var costCurrent = this._costFn(yBatch, yHatBatch, this._b);
+			if (this._converged(costOld, costCurrent, stopThreshold, gradientBatch)) {
+				break;
+			} else {
+				costOld = costCurrent;
+			}
+		}
+	}
+
+	_fitInit(X, y) {
+		var nRows = y.length;
+		this._b = (this._b) ? this._b : nRows;
+		// FIXME
+		// var costOld = this._costFn(y.slice(-this._b), np.zeros([this._b]), this._b);
+		var costOld = 0;
 		X = np.hstack([np.ones([X.length, 1]), X]);
-		y = np.reshape(y, [n, 1]);
+		y = np.reshape(y, [nRows, 1]);
 		if (!this._W) {
 			this._W = np.random.random([np.shape(X)[1], 1]);
 		}
-		for (let epoch = 0; epoch < maxIter; epoch++) {
-			for (let start = 0; start < n; start += this._b) {
-				let end = start + this._b;
-				let batchX = X.slice(start, end);
-				let batchY = y.slice(start, end);
-				let batchPreds = this.evaluate(batchX);
-				let batchGrad = this._grad(batchX, batchY, batchPreds);
-				// TODO add nesterov update
-				this._update(batchGrad, (this._b > 1) ? this._b : n); // TODO use ut for adaptive
-				let costCurrent = this._costFn(batchY, batchPreds, this._b);
-				if (!Math.abs(parseInt((costOld - costCurrent) / stopThreshold))
-					|| !parseInt(np.linalg.norm(batchGrad) / stopThreshold)
-				) {
-					return;
-				} else {
-					costOld = costCurrent;
-				}
-			}
+		return { costOld, y, X };
+	}
+
+	_runEpoch(X, y) {
+		var end, batchX, batchY, batchPreds, batchGrad;
+		for (let start = 0; start < y.length; start += this._b) {
+			end = start + this._b;
+			batchX = X.slice(start, end);
+			batchY = y.slice(start, end);
+			batchPreds = this.evaluate(batchX);
+			batchGrad = this._grad(batchX, batchY, batchPreds);
+			// TODO add nesterov update
+			this._update(batchGrad, (this._b > 1) ? this._b : y.length);
 		}
+		return [batchY, batchPreds, batchGrad];
+	}
+
+	_converged(costOld, costCurrent, stopThreshold, batchGrad) {
+		return !Math.abs(parseInt((costOld - costCurrent) / stopThreshold))
+			|| !parseInt(np.linalg.norm(batchGrad) / stopThreshold);
 	}
 
 	/**
