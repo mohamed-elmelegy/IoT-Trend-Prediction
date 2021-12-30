@@ -5,18 +5,19 @@
 // "use strict";
 
 const tf = require("@tensorflow/tfjs");
-const { AR } = require("./arima");
+const { AR, ARIMA } = require("./arima");
 
 let X = tf.linspace(1, 50, 50).arraySync();
-let arima = AR(2);
+let arima = ARIMA(2, 0, 2);
 let params = {
-    epochs: 8192,
+    epochs: 500,
     batchSize: 10,
     validationSplit: .2,
     shuffle: false
 };
-arima.fit(X, params).then(() => {
-    console.log(arima.predictSync(Array(5)));
-}).catch(err =>
-    console.error(err)
-);
+arima.fit(X, params)
+// .then(() => {
+//     console.log(arima.predictSync(Array(5)));
+// }).catch(err =>
+//     console.error(err)
+// );
