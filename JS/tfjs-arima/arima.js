@@ -29,7 +29,8 @@ class AutoRegression {
 	 */
 	fit(X, params = {}) {
 		let [features, labels] = AutoRegression.pShift(this._p, X);
-		this._keptFeatures = X.slice(-1 * this._p + 1);
+		const arSlice = -1 * (this._p + 1);
+		this._keptFeatures = X.slice(arSlice);
 
 		// FIXME cross-validation might be required
 		// TODO for cross validation: https://js.tensorflow.org/api/latest/#tf.LayersModel.fit
@@ -63,14 +64,17 @@ class AutoRegression {
 			return this.model.predict(X).reshape([-1, 1]).arraySync();
 		}
 		let res = this._keptFeatures;
-		const arShape = [1, this._p + 1];
+		let arShape = [1, this._p + 1];
 		const arSlice = -1 * arShape[1];
+		if (this._p <= 0) {
+			arShape = [-1];
+		}
 		// TODO X should be a tensor of timestamp, then converted to periods
 		let steps = AutoRegression.calculatePeriods(X); // FIXME steps should be calculated
 		for (let s = 0; s < steps; s++) {
 			let features = tf.tensor(res.slice(arSlice)).reshape(arShape);
 			let yHat = this.model.predict(features).arraySync();
-			res.push(yHat[0]);
+			res.push(yHat[0][0]);
 		}
 		return res.slice(-steps);
 	}
@@ -185,14 +189,15 @@ class MovingAverage {
 	}
 
 	fit(X, params = {}) {
+		const maSlice = -1 * (this._q + 1);
+		this._keptFeatures = X.slice(maSlice);
+		
 		let [features, labels] = MovingAverage.qShift(this._q, X);
 		this.buildModel([features.shape[1]],
 			tf.train.adam(0.01),
 			"meanSquaredError",
 			[tf.metrics.meanSquaredError]
 		);
-
-		this._keptFeatures = X.slice(-this._q);
 
 		return this.model.fit(features, labels, params);
 	}
@@ -218,13 +223,17 @@ class MovingAverage {
 			return this.model.predict(X).reshape([-1, 1]).arraySync();
 		}
 		let res = this._keptFeatures;
-		const shape = [1, this._q];
+		let maShape = [1, this._q + 1];
+		const maSlice = -1 * maShape[1];
+		if (this._q <= 0) {
+			maShape = [-1];
+		}
 		// TODO X should be a tensor of timestamp, then converted to periods
 		let steps = MovingAverage.calculatePeriods(X); // FIXME steps should be calculated
 		for (let s = 0; s < steps; s++) {
-			let features = tf.tensor(res.slice(-this._q)).reshape(shape);
+			let features = tf.tensor(res.slice(maSlice)).reshape(maShape);
 			let yHat = this.model.predict(features).arraySync();
-			res.push(yHat[0]);
+			res.push(yHat[0][0]);
 		}
 		return res.slice(-steps);
 	}
@@ -359,49 +368,27 @@ class ARIMA {
 	 * @returns 
 	 */
 	predictSync(X) {
-		let arFeatures = [...this._keptFeatures];
-		let arShape = [1, this._p + 1];
-		const arSlice = -1 * arShape[1];
-		if (this._p <= 0) {
-			arFeatures = this._keptFeatures.slice(-1);
-			arShape = [-1];
-		}
-		// TODO X should be a tensor of timestamp, then converted to periods
-		let steps = AutoRegression.calculatePeriods(X); // FIXME steps should be calculated
-		for (let s = 0; s < steps; s++) {
-			let features = tf.tensor(arFeatures.slice(arSlice)).reshape(arShape);
-			let yHat = this.arModel.predictSync(features, true);
-			arFeatures.push(yHat[0][0]);
-		}
-		let arPreds = tf.tensor(arFeatures.slice(-steps)).reshape([1, steps]);
+		const arPreds = this.arModel.predictSync(X);
+		const maPreds = this.maModel.predictSync(X);
 
-		let maFeatures = [...this._keptFeatures];
-		let movingAvgs = [];
-		const length = maFeatures.length;
-		for (let i = this._q; i < length; i++) {
-			const qSlice = this._keptFeatures.slice(i, length);
-			movingAvgs.push(tf.mean(qSlice).arraySync());
-		}
-		let residuals = tf.sub(arPreds, movingAvgs.slice(-steps)).arraySync();
-		let maShape = [1, this._q + 1];
-		const maSlice = -1 * maShape[1];
-		if (this._q <= 0) {
-			maShape = [-1];
-		}
-		for (let s = 0; s < steps; s++) {
-			let features = tf.tensor(residuals[0].slice(maSlice)).reshape(maShape);
-			let yHat = this.maModel.predictSync(features, true);
-			residuals.push(yHat[0]);
-		}
-		let maPreds = tf.tensor(residuals.slice(-steps)).reshape([1, steps]);
-		let armaPreds = tf.add(arPreds, maPreds).arraySync();
-
-		return armaPreds;
+		return tf.add(arPreds, maPreds).arraySync();
 	}
 
-	predict(toPredict) {
-		return Promise.resolve(this.predictSync(toPredict));
+	predict(X) {
+		return Promise.resolve(this.predictSync(X));
 	}
+
+	/**
+	 * 
+	 * @param {tfjs.Tensor} yTrue 
+	 * @param {tfjs.Tesnor} yPred 
+	 * @param {function} fn 
+	 * @returns 
+	 */
+	evaluate(yTrue, yPred, fn = tf.metrics.meanSquaredError) {
+		return fn(yTrue, yPred);
+	}
+
 }
 
 class ARMA extends ARIMA {
@@ -414,5 +401,5 @@ module.exports = {
 	AR: (p) => { return new AutoRegression(p); },
 	MA: (q) => { return new MovingAverage(q); },
 	ARIMA: (p, d, q) => { return new ARIMA(p, d, q); },
-	ARMA
+	ARMA: (p, q) => { return new ARMA(p, q); }
 }
