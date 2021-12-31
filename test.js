@@ -3,7 +3,7 @@
 
 const np = require("./numpy.js");
 // const pd = require("./pandas");
-// const { GradientDescent } = require("./linreg");
+const { GradientDescent } = require("./linreg");
 const { ARIMA } = require("./arima");
 
 

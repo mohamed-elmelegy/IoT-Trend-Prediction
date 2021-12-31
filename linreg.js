@@ -88,7 +88,7 @@ class GradientDescent {
 		if (np.ndim(features) == 1) {
 			features = np.reshape(features, [-1, 1]);
 		}
-		features = [np.ones([np.shape(features)[1], 1]), features];
+		features = [np.ones([features.length, 1]), features];
 		features = np.hstack(features);
 		return this.evaluate(features);
 	}
@@ -98,14 +98,28 @@ class GradientDescent {
 		var costOld;
 		({ costOld, y, X } = this._fitInit(X, y));
 		for (let epoch = 0; epoch < maxIter; epoch++) {
-			var [yBatch, yHatBatch, gradientBatch] = this._runEpoch(X, y);
-			var costCurrent = this._costFn(yBatch, yHatBatch, this._b);
-			if (this._converged(costOld, costCurrent, stopThreshold, gradientBatch)) {
+			var { costCurrent, gradient } = this._runEpoch(X, y);
+			if (this._converged(costOld, costCurrent, stopThreshold, gradient)) {
 				break;
 			} else {
 				costOld = costCurrent;
 			}
 		}
+	}
+
+	_runEpoch(X, y) {
+		var end, batchX, batchY, batchPreds, batchGrad;
+		for (let start = 0; start < y.length; start += this._b) {
+			end = start + this._b;
+			batchX = X.slice(start, end);
+			batchY = y.slice(start, end);
+			batchPreds = this.evaluate(batchX);
+			batchGrad = this._grad(batchX, batchY, batchPreds);
+			// TODO add nesterov update
+			this._update(batchGrad, (this._b > 1) ? this._b : y.length);
+		}
+		var costCurrent = this._costFn(batchY, batchPreds, this._b);
+		return { costCurrent, gradient: batchGrad };
 	}
 
 	_fitInit(X, y) {
@@ -120,20 +134,6 @@ class GradientDescent {
 			this._W = np.random.random([np.shape(X)[1], 1]);
 		}
 		return { costOld, y, X };
-	}
-
-	_runEpoch(X, y) {
-		var end, batchX, batchY, batchPreds, batchGrad;
-		for (let start = 0; start < y.length; start += this._b) {
-			end = start + this._b;
-			batchX = X.slice(start, end);
-			batchY = y.slice(start, end);
-			batchPreds = this.evaluate(batchX);
-			batchGrad = this._grad(batchX, batchY, batchPreds);
-			// TODO add nesterov update
-			this._update(batchGrad, (this._b > 1) ? this._b : y.length);
-		}
-		return [batchY, batchPreds, batchGrad];
 	}
 
 	_converged(costOld, costCurrent, stopThreshold, batchGrad) {

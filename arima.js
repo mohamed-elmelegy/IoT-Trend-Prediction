@@ -7,7 +7,16 @@
 const np = require("./numpy");
 const { GradientDescent } = require("./linreg");
 
+// FIXME the ARIMA should extend linear regression instead
 class AutoRegressionIntegratedMovingAverage extends GradientDescent {
+	/**
+	 * 
+	 * @param {number} p 
+	 * @param {number} d 
+	 * @param {number} q 
+	 * @param {number} learningRate 
+	 * @param {object} KWArgs 
+	 */
 	constructor(p, d, q, learningRate = .001, KWArgs = {}) {
 		super(learningRate, KWArgs);
 		this._p = p;
@@ -27,6 +36,12 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 		return this._d;
 	}
 
+	/**
+	 * 
+	 * @param {Array|NDArray} X 
+	 * @param {number} nCols 
+	 * @returns 
+	 */
 	_buildPredictors(X, nCols) {
 		var predictors = [];
 		for (let idx = 1; idx <= nCols; idx++) {
@@ -35,28 +50,29 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 		return np.reshape(predictors, [-1, nCols]);
 	}
 
+	/**
+	 * 
+	 * @param {Array|NDArray} X 
+	 * @param {Array|NDArray} y 
+	 */
 	score(X, y) {
 		// TODO to be implemented
 		throw new Error("Not Implemented yet!");
 	}
 
+	/**
+	 * FIXME only works with AR variants [AR, ARI, ARIMA]
+	 * @param {Array|NDArray} X 
+	 * @param {number} maxIter 
+	 * @param {number} stopThreshold 
+	 */
 	fitSync(X, maxIter = 1024, stopThreshold = 1e-6) {
-		// FIXME working AR
-		// var series = np.diff(X, this._d);
-		// var n = Math.max(this._p, this._q);
-		// var labels = series.slice(n);
-		// var feats = this._buildPredictors(series, this._p, n);
-		// this._lags = labels.slice(-this._p);
-		// this._W = np.zeros([this._p + 1, 1]);
-		// super.fitSync(feats, labels, maxIter, stopThreshold);
-		// /FIXME
 		this._initialValue = X[X.length - this._p - 1];
 		var series = np.diff(X, this._d);
-		var { lags, labels } = this._fitInit(series);
+		var { labels, lags, residuals } = this._fitInit(series);
 		var costOld = 0;
-		var residuals = this._buildPredictors(labels, this._q);
 		var n = residuals.length;
-		n = n? n : lags.length;
+		n = n ? n : lags.length;
 		const ones = np.ones([lags.length, 1]);
 		for (let epoch = 0; epoch < maxIter; epoch++) {
 			var features = np.hstack([
@@ -64,70 +80,64 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 				lags.slice(0, n),
 				residuals
 			]);
-			// FIXME residuals should update with each epoch
-			var [y, yHat, gradient] = super._runEpoch(features, labels.slice(0, n));
-			// var costCurrent = super._costFn(y, yHat, this._b);
-			var costCurrent = this._costFn(y, yHat, this._b);
+			var { costCurrent, gradient } = super._runEpoch(features, labels.slice(0, n));
+			features = np.hstack([ones, lags]);
+			var arW = this._W.slice(0, this._p + 1);
+			residuals = labels.sub(np.dot(features, arW));
+			residuals = this._buildPredictors(residuals, this._q);
 			if (super._converged(costOld, costCurrent, stopThreshold, gradient)) {
 				break;
 			} else {
 				costOld = costCurrent;
 			}
-			// residuals = (residuals.length) ? labels.sub(super.evaluate(features)) : residuals;
-			// FIXME
-			features = np.hstack([ones, lags]);
-			var arW = this._W.slice(0, this._p + 1);
-			residuals = labels.sub(np.dot(features, arW));
-			residuals = this._buildPredictors(residuals, this._q);
 		}
-		// FIXME edge case
 		if (this._q) {
-			// this._lags.push(...residuals.slice(-this._q));
-			this._residuals = residuals[0].slice(-this._q);//.flatten();
+			this._residuals = residuals[0].slice(-this._q);
 		}
 	}
 
+	/**
+	 * 
+	 * @param {Array|NDArray} X 
+	 * @returns 
+	 */
 	_fitInit(X) {
-		// var n = Math.max(this._p, this._q);
-		// var n = this._p;
-		var labels = X.slice(this._p);
-		this._lags = labels.slice(-this._p);
-		labels = np.reshape(labels, [-1, 1]);
-		// var lags = this._buildPredictors(X, this._p, n);
 		var lags = this._buildPredictors(X, this._p);
+		var labels = X.slice(this._p);
 		this._W = np.zeros([this._p + this._q + 1, 1]);
 		this._b = (this._b) ? this._b : labels.length;
-		return { lags, labels };
+		var residuals = this._buildPredictors(labels, this._q);
+		this._lags = labels.slice(-this._p);
+		labels = np.reshape(labels, [-1, 1]);
+		return { labels, lags, residuals };
 	}
 
-	_getResiduals(lags, labels) {
-		var preds = super.evaluate(lags);
-		var error = labels.sub(preds);
-		var residuals = [];
-		for (let idx = 1; idx <= this._q; idx++) {
-			residuals.push(error.slice(this._q - idx, -idx));
-		}
-		residuals = np.transpose(residuals);
-		return residuals;
-	}
-
+	/**
+	 * 
+	 * @param {Array|NDArray} X 
+	 * @param {number} maxIter 
+	 * @param {number} stopThreshold 
+	 * @returns 
+	 */
 	async fit(X, maxIter = 1024, stopThreshold = 1e-6) {
 		this.fitSync(X, maxIter, stopThreshold);
 		return this;
 	}
 
+	/**
+	 * 
+	 * @param {number} periods 
+	 * @returns 
+	 */
 	predictSync(periods) {
 		var lags = this._lags.slice();
-		// var n = lags.length;
 		var residuals = [];
 		if (this._residuals) {
 			residuals = this._residuals.slice();
-			// n += residuals.length;
 		}
 		for (let i = 0; i < periods; i++) {
 			var X = lags.slice(-this._p);
 			X.push(...residuals.slice(-this._q));
-			// var X = predictors.slice(-n);
 			X.unshift(1);
 			X = np.reshape(X, [1, -1]);
 			var y = super.evaluate(X).flatten();
@@ -137,6 +147,8 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 			}
 			// TODO q elements
 		}
+		// the Integration step
+		// https://stackoverflow.com/questions/43563241/numpy-diff-inverted-operation
 		if (this._d) {
 			lags.unshift(this._initialValue);
 			lags = np.cumsum(lags);
@@ -144,6 +156,11 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 		return lags.slice(-periods);
 	}
 
+	/**
+	 * 
+	 * @param {number} periods 
+	 * @returns 
+	 */
 	async predict(periods) {
 		return this.predictSync(periods);
 	}
