@@ -9,25 +9,27 @@ const { AR, ARIMA } = require("./arima");
 const dfd = require("danfojs-node");
 
 let params = {
-    epochs: 1024,
+    epochs: 100,
     batchSize: 10,
     validationSplit: .2,
     shuffle: false,
     verbose: 0
 };
 
+console.log(process.env.PWD);
 
 var arima = ARIMA(2, 0, 2);
-dfd.read_csv("../../../Data/test.csv").then(df => {
+dfd.read_csv("./Data/daily-total-female-births-in-cal.csv").then(df => {
     df.print();
-    return df["value"].tensor.array();
-}).catch(console.error);
-// .then(X => {
-//     return arima.fit(X, params);
-// }).then(() => {
-//     console.log(arima.p, arima.d, arima.q);
-//     return arima.predict(Array(60));
-// }).then(console.log).catch(console.error);
+    return df["births"].tensor.array();
+}).then(X => {
+    console.log(X.slice(-15));
+    X = X.slice(0, -15)
+    return arima.fit(X, params);
+}).then(() => {
+    console.log(arima.p, arima.d, arima.q);
+    return arima.predict(Array(15));
+}).then(console.log).catch(console.error);
 
 
 // let X = tf.linspace(1, 50, 50).arraySync();
