@@ -129,7 +129,7 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 	 * @param {number} periods 
 	 * @returns 
 	 */
-	predictSync(periods) {
+	forecastSync(periods) {
 		var lags = this._lags.slice();
 		var residuals = [];
 		if (this._residuals) {
@@ -150,7 +150,7 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 		// the Integration step
 		// https://stackoverflow.com/questions/43563241/numpy-diff-inverted-operation
 		if (this._d) {
-			lags.unshift(this._initialValue);
+			lags.unshift(...this._initialValue);
 			lags = np.cumsum(lags);
 		}
 		return lags.slice(-periods);
@@ -161,8 +161,8 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 	 * @param {number} periods 
 	 * @returns 
 	 */
-	async predict(periods) {
-		return this.predictSync(periods);
+	async forecast(periods) {
+		return this.forecastSync(periods);
 	}
 
 	updateSync(trueLags) {
