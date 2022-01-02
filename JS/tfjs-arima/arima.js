@@ -116,16 +116,17 @@ class LinearRegression {
 				tf.tensor(X).reshape([-1, 1])
 			];
 		}
-
+		const featureShape = [(X.length - this._shifts), this._shifts];
+		const labelShape = [-1, 1];
 		let labels = X.slice(this._shifts);
-        let features = [];
-        for (let i = 1; i <= this._shifts; i++) {
+		let features = [];
+		for (let i = 1; i <= this._shifts; i++) {
 			features.push(X.slice(this._shifts - i, -i));
-        }
+		}
 
 		return [
-			tf.tensor(features).transpose(),
-			tf.tensor(labels).reshape([-1, 1])
+			tf.tensor(features).reshape(featureShape),
+			tf.tensor(labels).reshape(labelShape)
 		];
 	}
 
