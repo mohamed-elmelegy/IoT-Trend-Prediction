@@ -40,7 +40,7 @@ class LinearRegression {
 	 */
 	fit(X, params = {}) {
 		let [features, labels] = this.shiftInput(X);
-		const sliceWindow = -1 * (this._shifts + 1);
+		const sliceWindow = -1 * this._shifts;
 		this._keptFeatures = X.slice(sliceWindow);
 
 		// FIXME cross-validation might be required
@@ -76,7 +76,7 @@ class LinearRegression {
 			return this.model.predict(X).reshape([-1, 1]).arraySync();
 		}
 		let res = [...this._keptFeatures];
-		let featureShape = [1, this._shifts + 1];
+		let featureShape = [1, this._shifts];
 		const sliceWindow = -1 * featureShape[1];
 		if (this._shifts <= 0) {
 			featureShape = [-1];
@@ -116,31 +116,16 @@ class LinearRegression {
 				tf.tensor(X).reshape([-1, 1])
 			];
 		}
-		const featureShape = [X.length, this._shifts + 1];
-		const labelShape = [-1, 1];
-		let shift = 0;
-		let shiftedXs = [];
-		let outputArray = [...X];
 
-		// TODO[danfojs]: replace this with danfojs
-		while (shift <= this._shifts) {
-			let shiftedX = [];
-			for (let k = 0; k < shift; k++) {
-				// Add temporary 0 instead of NAN... 
-				// TODO: Input Data should be cleaned
-				shiftedX.push(0);
-			}
-			for (let i = 0; i < outputArray.length - shift; i++) {
-				shiftedX.push(X[i]);
-			}
-			outputArray = shiftedX;
-			shiftedXs.push(shiftedX);
-			shift += 1;
-		}
+		let labels = X.slice(this._shifts);
+        let features = [];
+        for (let i = 1; i <= this._shifts; i++) {
+			features.push(X.slice(this._shifts - i, -i));
+        }
 
 		return [
-			tf.tensor(shiftedXs).reshape(featureShape),
-			tf.tensor([...X]).reshape(labelShape)
+			tf.tensor(features).transpose(),
+			tf.tensor(labels).reshape([-1, 1])
 		];
 	}
 
