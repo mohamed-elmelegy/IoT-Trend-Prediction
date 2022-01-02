@@ -46,7 +46,7 @@ class LinearRegression {
 		// FIXME cross-validation might be required
 		// TODO for cross validation: https://js.tensorflow.org/api/latest/#tf.LayersModel.fit
 		this.buildModel([features.shape[1]],
-			tf.train.adam(0.01),
+			tf.train.adam(0.001),
 			"meanSquaredError",
 			[tf.metrics.meanSquaredError]
 		);
@@ -60,20 +60,20 @@ class LinearRegression {
 	 * @returns 
 	 */
 	static calculatePeriods(series) {
-		// TODO actually calculate periods
+		// TODO actually calculate periods, or using timestamps
 		return series.length;
 	}
 
 	/**
 	 * 
-	 * @param {Array|tfjs.Tensor} X 
+	 * @param {Array|tfjs.Tensor|number} X 
 	 * @param {Boolean} usingFeatures 
 	 * 
 	 * @returns {Array}
 	 */
-	predictSync(X, usingFeatures = false) {
+	predictSync(steps, usingFeatures = false) {
 		if (usingFeatures) {
-			return this.model.predict(X).reshape([-1, 1]).arraySync();
+			return this.model.predict(steps).reshape([-1, 1]).arraySync();
 		}
 		let res = [...this._keptFeatures];
 		let featureShape = [1, this._shifts];
@@ -81,8 +81,7 @@ class LinearRegression {
 		if (this._shifts <= 0) {
 			featureShape = [-1];
 		}
-		// TODO X should be a tensor of timestamp, then converted to periods
-		let steps = LinearRegression.calculatePeriods(X); // FIXME steps should be calculated
+		
 		for (let s = 0; s < steps; s++) {
 			let features = tf.tensor(res.slice(sliceWindow)).reshape(featureShape);
 			let yHat = this.model.predict(features).arraySync();
@@ -93,7 +92,7 @@ class LinearRegression {
 
 	/**
 	 * 
-	 * @param {Array|tfjs.Tensor} X 
+	 * @param {Array|tfjs.Tensor|number} X 
 	 * @param {Boolean} usingFeatures 
 	 * 
 	 * @returns {Promise<Array>}
@@ -104,7 +103,6 @@ class LinearRegression {
 
 	/**
 	 * 
-	 * @param {number} this._shifts 
 	 * @param {Array} X 
 	 * 
 	 * @returns {Array<tf.Tensor>}
@@ -147,7 +145,11 @@ class LinearRegression {
 		const inputLayer = tf.input({ shape: inputShape });
 
 		// Output dense layer uses linear activation.
-		const denseLayer1 = tf.layers.dense({ units: 1 });
+		const denseLayer1 = tf.layers.dense({ 
+			units: 1,
+			kernelInitializer: 'zeros', 
+			biasInitializer: 'zeros'
+		});
 
 		// Obtain the output symbolic tensor by applying the layers on the inputLayer.
 		const output = denseLayer1.apply(inputLayer);
@@ -217,7 +219,7 @@ class ARIMA {
 
 	/**
 	 * 
-	 * @param {Array|tfjs.Tensor} X 
+	 * @param {Array|tfjs.Tensor|number} X 
 	 * 
 	 * @returns {Array}
 	 */
@@ -230,7 +232,7 @@ class ARIMA {
 
 	/**
 	 * 
-	 * @param {Array|tfjs.Tensor} X 
+	 * @param {Array|tfjs.Tensor|number} X 
 	 * 
 	 * @returns {Promise<Array>}
 	 */

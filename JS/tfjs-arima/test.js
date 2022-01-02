@@ -31,23 +31,41 @@ const { AR, ARIMA } = require("./arima");
 //     return arima.predict(Array(15));
 // }).then(console.log).catch(console.error);
 
-
-let X = tf.linspace(1, 20, 20).arraySync();
-let arima = ARIMA(2, 0, 0);
+const X = tf.randomNormal([1000], 50, 5).arraySync();
+const trainSize = parseInt(0.8 * X.length);
+const xTrain = X.slice(0, trainSize);
+const xTest = X.slice(-1 * (X.length - trainSize));
+// console.log(xTrain, xTest);
 
 let params = {
-    epochs: 100,
-    batchSize: 10,
+    epochs: 2500,
+    batchSize: parseInt(0.2 * xTrain.length),
     validationSplit: .2,
+    callbacks: tf.callbacks.earlyStopping({ monitor: 'val_loss', patience: 2 }),
     shuffle: false,
-    verbose: 0
+    verbose: 1
 };
+
+let arima = ARIMA(4, 0, 1);
+
+console.time("Total Fit Time");
+
 arima.fit(X, params).then(() => {
+    console.log(`ARIMA(${arima.p}, ${arima.d}, ${arima.q}) Summary:\n----------------------`);
+    console.timeEnd("Total Fit Time");
+
+    return arima.predict(xTest.length);
+}).then(preds => {
+    console.time("Total Predict Time");
     console.log(
-        // "Final ARIMA(" + arima.p + ", " + arima.d + ", " + arima.q + ") Predictions: "
-        `Final ARIMA(${arima.p}, ${arima.d}, ${arima.q}) Predictions:`
+        "\nFirst Predictions:",
+        preds.slice(0, 5)
     );
-    return arima.predict(Array(5));
-}).then(console.log).catch(err =>
+    console.timeEnd("Total Predict Time");
+    console.log(
+        "\nPrediction MSE Loss: ",
+        arima.evaluate(xTest, preds, tf.metrics.meanSquaredError).mean().arraySync()
+    );
+}).catch(err =>
     console.error(err)
 );
