@@ -1,7 +1,6 @@
 #! /usr/bin/node
 "use strict";
 
-const tf = require("@tensorflow/tfjs");
 const dfd = require("danfojs-node");
 const np = require("./numpy.js");
 const { ARIMA } = require("./arima");
