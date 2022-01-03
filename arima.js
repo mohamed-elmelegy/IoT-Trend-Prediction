@@ -67,7 +67,7 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 	 * @param {number} stopThreshold 
 	 */
 	fitSync(X, maxIter = 1024, stopThreshold = 1e-6) {
-		this._initialValue = X.slice(-this._d - this._p);
+		this._initialValue = X.slice(-this._d - this._p, -this._p);
 		var series = np.diff(X, this._d);
 		var { labels, lags, residuals } = this._fitInit(series);
 		var costOld = 0;
@@ -150,7 +150,7 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 		// the Integration step
 		// https://stackoverflow.com/questions/43563241/numpy-diff-inverted-operation
 		for (let d = this._d - 1; d >= 0; d--) {
-			lags.unshift(...this._initialValue[d]);
+			lags.unshift(this._initialValue[d]);
 			lags = np.cumsum(lags);
 		}
 		return lags.slice(-periods);
