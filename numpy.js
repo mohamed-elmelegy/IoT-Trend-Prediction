@@ -50,7 +50,7 @@ class NDArray extends Array {
 					res = this.at(args[0]);
 					args = args.slice(1);
 					args.forEach(idx => {
-						res = res.map(el => array(el).at(idx));
+						res = res.map(el => [...array(el).at(idx)]);
 					});
 					return res;
 				}
@@ -174,7 +174,8 @@ function diff(vector, order = 1) {
 	if (order == 0) {
 		return vector;
 	}
-	let self = array(vector);
+	// let self = array(vector);
+	let self = [...vector];
 	for (let d = 0; d < order; d++) {
 		let other = self.slice(0, -1);
 		self = self.slice(1);
@@ -292,10 +293,10 @@ function reshape(vector, size) {
 	} else if (tSize != oSize) {
 		throw Error("Incompatible shapes");
 	}
-	vector = array(vector).flatten();
 	// FIXME keeping the largest array as ndarray, & internal arrays 
 	// as normal arrays
-	vector = [...vector];
+	vector = [...array(vector).flatten()];
+	// vector = [...vector];
 	let result = [];
 	size = size.reverse();
 	for (let idx = 0; idx < size.length - 1; idx++) {
@@ -358,7 +359,6 @@ function dot(a, b) {
 	if (ndim(b) == 1) {
 		b = transpose([b]);
 	}
-	// FIXME 2D operation only
 	var resShape = shapeA.slice(0, -1);
 	resShape.push(...shapeB.slice(1));
 	b = transpose(b);
@@ -460,7 +460,7 @@ function arange(start, end, step) {
 		return [];
 	}
 	[start, end] = (start < end) ? [start, end] : [end, start];
-	let res = array(Array(end).keys())
+	var res = array(Array(end).keys())
 		.slice(start)
 		.filter(el =>
 			!((el - start) % step)
@@ -508,8 +508,8 @@ function vstack(elements) {
  * @returns 
  */
 function hstack(elements) {
-	// FIXME edge case
 	var res;
+	// FIXME edge case
 	if (ndim(elements[0]) == 1) {
 		res = [];
 		elements.forEach(el => {
@@ -668,12 +668,12 @@ const linalg = {
 	 */
 	toeplitz: function (c, r = null) {
 		if (r) {
-			// FIXME handle row not null
+			// TODO handle row not null
 		} else {
-			var k = c.slice().reverse();
+			r = [...c].reverse();
 			var l = c.length;
 			return c.map((_, i) =>
-				[...k.slice(-1 - i), ...c.slice(1, l - i)]
+				[...r.slice(-1 - i), ...c.slice(1, l - i)]
 			);
 		}
 	}
