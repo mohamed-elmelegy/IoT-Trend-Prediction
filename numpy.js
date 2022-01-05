@@ -19,6 +19,48 @@ class NDArray extends Array {
 	get T() {
 		return transpose(this);
 	}
+
+	get shape() {
+		return shape(this);
+	}
+
+	get ndim() {
+		return ndim(this);
+	}
+
+	/**
+	 * 
+	 * @param  {...any} args 
+	 * @returns 
+	 */
+	at(...args) {
+		switch (ndim(args)) {
+			case 1:
+				var res = this.slice();
+				args.forEach(idx => {
+					res = res[idx];
+				});
+				return res;
+			default:
+				if (args.length > this.ndim) {
+					throw new Error("Index out of bound");
+				}
+				var res = [];
+				if (args.length > 1) {
+					res = this.at(args[0]);
+					args = args.slice(1);
+					args.forEach(idx => {
+						res = res.map(el => array(el).at(idx));
+					});
+					return res;
+				}
+				[args] = args;
+				args.forEach(i => {
+					res.push(super.at(i));
+				});
+				return array(res);
+		}
+	}
 }
 
 /**
@@ -184,16 +226,15 @@ function ndim(vector) {
  */
 function transpose(vector) {
 	const dim = ndim(vector);
-	if (dim == 1) {
-		return vector;
-	}
-	if (dim == 2) {
-		// return vector[0].map((_, j) =>
-		// 	vector.map((row) => row[j])
-		// );
-		return array(vector[0].map((_, j) =>
-			[...vector].map((row) => row[j])
-		));
+	switch (dim) {
+		case 1:
+			return vector;
+		case 2:
+			return array(vector[0].map((_, j) =>
+				[...vector].map((row) => row[j])
+			));
+		default:
+
 	}
 }
 
@@ -318,12 +359,16 @@ function dot(a, b) {
 		b = transpose([b]);
 	}
 	// FIXME 2D operation only
+	var resShape = shapeA.slice(0, -1);
+	resShape.push(...shapeB.slice(1));
 	b = transpose(b);
-	return a.map(row =>
+	var res = reshape(a, [-1, shapeB[0]]);
+	res = res.map(row =>
 		b.map(col =>
 			sum(array(row).mul(col))
 		)
 	);
+	return reshape(res, resShape);
 }
 
 /**
@@ -579,6 +624,24 @@ NDArray.prototype.flatten = function () {
 	return this.flat(ndim(this) - 1);
 }
 
+/**
+ * 
+ * @returns 
+ */
+NDArray.prototype.toArray = function () {
+	const s = this.shape;
+	return [...reshape(this.flatten(), s)];
+}
+
+/**
+ * 
+ * @param {Array} size 
+ * @returns 
+ */
+NDArray.prototype.reshape = function (size) {
+	return reshape(this, size);
+}
+
 const linalg = {
 	/**
 	 * 
@@ -595,7 +658,24 @@ const linalg = {
 		} else if (ord == 0) {
 
 		}
-		return sum(vector.power(ord)) ** 1 / ord
+		return sum(vector.power(ord)) ** (1 / ord)
+	},
+	/**
+	 * 
+	 * @param {Array|NDArray} c 
+	 * @param {Array|NDArray} r 
+	 * @returns 
+	 */
+	toeplitz: function (c, r = null) {
+		if (r) {
+			// FIXME handle row not null
+		} else {
+			var k = c.slice().reverse();
+			var l = c.length;
+			return c.map((_, i) =>
+				[...k.slice(-1 - i), ...c.slice(1, l - i)]
+			);
+		}
 	}
 }
 

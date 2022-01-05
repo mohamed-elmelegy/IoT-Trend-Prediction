@@ -38,6 +38,20 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 
 	/**
 	 * 
+	 * @param {Array} X 
+	 * @param {number} n 
+	 * @returns 
+	 */
+	_buildNLags(X, n = 0) {
+		return np.linalg.toeplitz(X)
+			.at(
+				np.arange(n + 1),
+				np.arange(n, X.length)
+			).reverse();
+	}
+
+	/**
+	 * 
 	 * @param {Array|NDArray} X 
 	 * @param {number} nCols 
 	 * @returns 
