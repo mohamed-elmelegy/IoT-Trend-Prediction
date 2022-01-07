@@ -83,7 +83,7 @@ class GradientDescent {
 	 * @param {NDArray} X 
 	 * @returns 
 	 */
-	async forecast(X) {
+	async predict(X) {
 		var features = X.slice();
 		if (np.ndim(features) == 1) {
 			features = np.reshape(features, [-1, 1]);
