@@ -136,9 +136,9 @@ class GradientDescent {
 		return { costOld, y, X };
 	}
 
-	_converged(costOld, costCurrent, stopThreshold, batchGrad) {
+	_converged(costOld, costCurrent, stopThreshold, gradient) {
 		return !Math.abs(parseInt((costOld - costCurrent) / stopThreshold))
-			|| !parseInt(np.linalg.norm(batchGrad) / stopThreshold);
+			|| !parseInt(np.linalg.norm(gradient) / stopThreshold);
 	}
 
 	/**

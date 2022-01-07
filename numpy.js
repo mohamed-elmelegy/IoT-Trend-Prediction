@@ -28,12 +28,24 @@ class NDArray extends Array {
 		return ndim(this);
 	}
 
+	get strides() {
+		var size = this.shape.slice(1);
+		size.push(1);
+		for (let i = size.length - 2; i >= 0; i--) {
+			size[i] *= size[i + 1];
+		}
+		return size;
+	}
+
 	/**
 	 * 
 	 * @param  {...any} args 
 	 * @returns 
 	 */
 	at(...args) {
+		if (args.length > this.ndim) {
+			throw new Error("Index out of bound");
+		}
 		switch (ndim(args)) {
 			case 1:
 				var res = this.slice();
@@ -42,9 +54,6 @@ class NDArray extends Array {
 				});
 				return res;
 			default:
-				if (args.length > this.ndim) {
-					throw new Error("Index out of bound");
-				}
 				var res = [];
 				if (args.length > 1) {
 					res = this.at(args[0]);
@@ -226,17 +235,22 @@ function ndim(vector) {
  * @returns 
  */
 function transpose(vector) {
-	const dim = ndim(vector);
-	switch (dim) {
-		case 1:
-			return vector;
-		case 2:
-			return array(vector[0].map((_, j) =>
-				[...vector].map((row) => row[j])
-			));
-		default:
-
-	}
+	vector = array(vector);
+	var self = vector.flatten();
+	var res = [];
+	var temp = [];
+	var steps = vector.strides.slice(0, -1);
+	steps.forEach(step => {
+		for (let o = 0; o < step; o++) {
+			for (let i = o; i < self.length; i += step) {
+				temp.push(self[i]);
+			}
+			res.push(temp);
+			temp = [];
+		}
+		[self, res] = [res, []];
+	});
+	return array(self);
 }
 
 /**
@@ -344,25 +358,24 @@ function sum(vector, axis = null, initialValue = 0) {
  * @returns 
  */
 function dot(a, b) {
-	const shapeA = shape(a);
-	const shapeB = shape(b);
-	if (shapeA[shapeA.length - 1] != shapeB[0]) {
+	const shapeA = a.shape;
+	const shapeB = b.shape;
+	if (shapeA.at(-1) != shapeB[0]) {
 		throw Error("Internal dimension mismatch");
 	}
 	// vector dot product
-	if ((ndim(a) == 1) && (ndim(b) == 1)) {
+	if ((a.ndim == 1) && (b.ndim == 1)) {
 		return sum(a.mul(b));
 	}
-	if (ndim(a) == 1) {
-		a = transpose([a]);
+	if (a.ndim == 1) {
+		a = a.reshape([1, -1]);
 	}
-	if (ndim(b) == 1) {
-		b = transpose([b]);
+	if (b.ndim == 1) {
+		b = b.reshape([-1, 1]);
 	}
-	var resShape = shapeA.slice(0, -1);
-	resShape.push(...shapeB.slice(1));
+	var resShape = [...shapeA.slice(0, -1), ...shapeB.slice(1)];
+	var res = a.reshape([-1, b.shape[0]]);
 	b = transpose(b);
-	var res = reshape(a, [-1, shapeB[0]]);
 	res = res.map(row =>
 		b.map(col =>
 			sum(array(row).mul(col))
@@ -689,6 +702,7 @@ const random = {
 		if (!size) {
 			return Math.random();
 		}
+		size = (typeof (size) === 'number') ? [size] : size;
 		return reshape(empty(size).flatten()
 			.map(_ =>
 				Math.random()

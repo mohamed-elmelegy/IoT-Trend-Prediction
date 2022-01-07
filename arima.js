@@ -36,6 +36,22 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 		return this._d;
 	}
 
+	get theta() {
+		return this._W.slice(0, this._p + 1);
+	}
+
+	set theta(value) {
+		this._W = np.array([...value, ...this.phi]);
+	}
+
+	get phi() {
+		return this._W.slice(-this._q);
+	}
+
+	set phi(value) {
+		this._W = np.array([...this.theta, ...value]);
+	}
+
 	/**
 	 * 
 	 * @param {Array} X 
@@ -45,8 +61,8 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 	_buildNLags(X, n = 0) {
 		return np.linalg.toeplitz(X)
 			.at(
+				np.arange(1, n + 1),//.reverse(),
 				np.arange(n, X.length),
-				np.arange(n + 1).reverse(),
 			);
 	}
 
@@ -108,6 +124,105 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 		if (this._q) {
 			this._residuals = residuals[0].slice(-this._q);
 		}
+	}
+
+	mleSync(X, maxIter = 1024, stopThreshold = 1e-6) {
+		// calculate how many lags to keep to be able to forecast
+		const keepLength = this._p + Math.max(this._q - 1, 0);
+		// storing values for integration step during forecasting
+		this._initialValue = X.slice(-this._d - keepLength, -keepLength);
+		// differentiate, which gives labels
+		var labels = np.diff(X, this._d);
+		// init sequence
+		let qLags;
+		let Y;
+		var pLags;
+		let n;
+		var costOld;
+		({ qLags, Y, pLags, n, costOld, labels } = this._mleInit(labels, keepLength));
+		// run for epochs number
+		for (let epoch = 0; epoch < maxIter; epoch++) {
+			var residuals = this._calculateResidulas(qLags, Y);
+			// integrate residuals & lags in one feature matrix
+			var features = np.hstack([pLags, residuals]);
+			// run a single epoch
+			var costCurrent;
+			var gradient;
+			({ costCurrent, gradient } = this._runEpochMLE(labels, features, qLags, pLags, n, Y));
+			// check if convergence is achieved; update cost accordingly
+			if (super._converged(costOld, costCurrent, stopThreshold, gradient)) {
+				console.log(epoch);
+				break;
+			} else {
+				costOld = costCurrent;
+			}
+		}
+	}
+
+	_calculateResidulas(qLags, Y) {
+		// predict using only AR
+		var X2 = np.dot(qLags, this.theta).T;
+		// calculate residuals
+		X2 = Y.sub(X2);
+		return X2;
+	}
+
+	_runEpochMLE(labels, features, qLags, pLags, n, Y) {
+		// declare variables for batch looping
+		var end, batchX, batchY, batchPredictions, batchGradTheta, batchGradPhi, X;
+		for (let start = 0; start < labels.length; start += this._b) {
+			// set indices
+			end = start + this._b;
+			// slice into batches
+			batchX = features.slice(start, end);
+			batchY = labels.slice(start, end);
+			// evaluate with current weights
+			// batchPredictions = this.evaluate(batchX);
+			batchPredictions = super.evaluate(batchX);
+			// calculate error in prediction of ARMA
+			var error = batchY.sub(batchPredictions);
+			// calculate gradient of theta
+			X = np.dot(qLags.T, this.phi).T;
+			X = pLags.sub(X).T;
+			batchGradTheta = np.dot(X, error);
+			batchGradTheta = batchGradTheta.mul(this._alpha).div((this._b > 1) ? this._b : n); //.add(this._gamma*vt1);
+			// update theta
+			this.theta = this.theta.sub(batchGradTheta);
+			// calculate gradient of phi
+			X = this._calculateResidulas(qLags, Y).T;
+			batchGradPhi = np.dot(X, error);
+			batchGradPhi = batchGradPhi.mul(this._alpha).div((this._b > 1) ? this._b : n); //.add(this._gamma*vt1);
+
+			// update phi
+			this.phi = this.phi.sub(batchGradPhi);
+		}
+		var gradient = np.array([...batchGradTheta, ...batchGradPhi]);
+		var costCurrent = this._costFn(batchY, batchPredictions, this._b);
+		return { costCurrent, gradient };
+	}
+
+	_mleInit(labels, keepLength) {
+		// build p lags
+		var pLags = this._buildNLags(labels, this._p).T;
+		// create a column of ones to calculate free/intercept term
+		pLags = np.hstack([np.ones([pLags.length, 1]), pLags]);
+		// build q lags of p lags for calculating residuals
+		const qLags = this._buildNLags(pLags, this._q);
+		// adjust dimensions
+		const n = qLags.shape[1];
+		// build q lags of labels for calculating residuals
+		const Y = this._buildNLags(labels, this._q).T.slice(-n);
+		labels = labels.slice(-n);
+		pLags = pLags.slice(-n);
+		// save lags to be used in forecasting
+		this._lags = labels.slice(-keepLength);
+		// init weights & batch size
+		// this._W = (this._W) ? this._W : np.random.random([this._p + this._q + 1]);
+		this._W = (this._W) ? this._W : np.zeros([this._p + this._q + 1]);
+		this._b = this._b | labels.length;
+		// init old cost for GD algorithm early stop
+		var costOld = 0;
+		return { qLags, Y, pLags, n, costOld, labels };
 	}
 
 	/**
