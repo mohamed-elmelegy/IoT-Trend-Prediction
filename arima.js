@@ -5,19 +5,15 @@
 "use strict";
 
 const np = require("./numpy");
+const tf = require("@tensorflow/tfjs");
 const { GradientDescent } = require("./linreg");
 
 // FIXME the ARIMA should extend linear regression instead
 class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 
 	constructor(order = [1, 0, 0], KWArgs = { learningRate: 1e-3, batchSize: 1 }) {
-		// constructor(p, d, q, learningRate = 1e-3, KWArgs = { batchSize: 1 }) {
-		// super(learningRate, KWArgs);
 		super((KWArgs.learningRate) ? KWArgs.learningRate : 1e-3, KWArgs);
 		[this._p, this._d, this._q] = order;
-		// this._p = order[0];
-		// this._d = order[1];
-		// this._q = order[2];
 		this._update = function (gradient, m, vt1 = 0) {
 			this._W = this._W.add(this.vt(gradient, m, vt1));
 		};
@@ -91,7 +87,6 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 
 	/**
 	 * FIXME only works with AR variants: ARIMA(p,d,0), ARIMA(p,d,q)
-	 * TODO apply MLE on sigma for residuals
 	 * @param {Array|NDArray} X 
 	 * @param {number} maxIter 
 	 * @param {number} stopThreshold 
@@ -109,6 +104,7 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 				costOld = costCurrent;
 			}
 		}
+		this.sigma2 = residuals.power(2).sum() / (labels.length - this._p);  //.div(labels.length - this._p);
 		if (this._q) {
 			this._residuals = residuals.slice(-this._q);
 		}
@@ -183,16 +179,14 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 			residuals = this._residuals.slice();
 		}
 		for (let i = 0; i < periods; i++) {
-			var X = lags.slice(-this._p);
-			X.push(...residuals.slice(-this._q));
-			X.unshift(1);
-			X = np.reshape(X, [1, -1]);
-			var y = super.evaluate(X).flatten();
-			lags.push(...y);
+			var X = [1, ...lags.slice(-this._p), ...residuals.slice(-this._q)];
+			var y = this.evaluate(X);//.flatten();
+			var [e] = tf.randomNormal([1], 0, Math.sqrt(this.sigma2)).arraySync();
+			y += e;
+			lags.push(y);
 			if (residuals.length) {
-				residuals.push(np.mean(residuals));
+				residuals.push(e);
 			}
-			// TODO q elements
 		}
 		// the Integration step
 		// https://stackoverflow.com/questions/43563241/numpy-diff-inverted-operation
@@ -225,8 +219,6 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 module.exports = {
 	ARIMA:
 		([p, d, q], KWArgs = { learningRate: 1e-3, batchSize: 1 }) => {
-			// (p, d, q, learningRate = 1e-3, KWArgs = { batchSize: 1 }) => {
-			// return new AutoRegressionIntegratedMovingAverage(p, d, q, learningRate, KWArgs)
 			return new AutoRegressionIntegratedMovingAverage([p, d, q], KWArgs)
 		},
 }

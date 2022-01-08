@@ -215,6 +215,11 @@ function mean(vector) {
 	return sum(array(vector)) / vector.length;
 }
 
+function std(vector) {
+	const mu = mean(vector);
+	return sum(array(vector).sub(mu).power(2)) / vector.length;
+}
+
 /**
  * number of dimensions of the array
  * @param {Array|NDArray} vector 
@@ -359,8 +364,11 @@ function sum(vector, axis = null, initialValue = 0) {
  * @returns 
  */
 function dot(a, b) {
+	[a, b] = [array(a), array(b)];
 	const shapeA = a.shape;
 	const shapeB = b.shape;
+	// const shapeA = shape(a);
+	// const shapeB = shape(b);
 	if (shapeA.at(-1) != shapeB[0]) {
 		throw Error("Internal dimension mismatch");
 	}
@@ -674,6 +682,18 @@ NDArray.prototype.reshape = function (size) {
  */
 NDArray.prototype.dot = function (that) {
 	return dot(this, that);
+}
+
+NDArray.prototype.sum = function () {
+	return sum(this);
+}
+
+NDArray.prototype.mean = function () {
+	return mean(this);
+}
+
+NDArray.prototype.std = function () {
+	return std(this);
 }
 
 const linalg = {
