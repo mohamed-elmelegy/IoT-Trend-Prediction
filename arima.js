@@ -17,7 +17,7 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 	 * @param {number} learningRate 
 	 * @param {object} KWArgs 
 	 */
-	constructor(p, d, q, learningRate = .001, KWArgs = {}) {
+	constructor(p, d, q, learningRate = 1e-3, KWArgs = { batchSize: 1 }) {
 		super(learningRate, KWArgs);
 		this._p = p;
 		this._d = d;
@@ -37,19 +37,19 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 	}
 
 	get theta() {
-		return this._W.slice(0, this._p + 1);
-	}
-
-	set theta(value) {
-		this._W = np.array([...value, ...this.phi]);
-	}
-
-	get phi() {
 		return this._W.slice(-this._q);
 	}
 
-	set phi(value) {
+	set theta(value) {
 		this._W = np.array([...this.theta, ...value]);
+	}
+
+	get phi() {
+		return this._W.slice(0, this._p + 1);
+	}
+
+	set phi(value) {
+		this._W = np.array([...value, ...this.phi]);
 	}
 
 	/**
@@ -97,24 +97,62 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 	 * @param {number} stopThreshold 
 	 */
 	fitSync(X, maxIter = 1024, stopThreshold = 1e-6) {
+		// this._W = np.zeros([this._p + this._q + 1, 1]);
+		this._W = np.zeros([this._p + this._q + 1]);
+		const yDiff = np.diff(X, this._d);
+		// var lags = this._buildPredictors(yDiff, this._p);
+		const lags = this._buildNLags(yDiff, this._p).T;
+		// var labels = X.slice(this._p);
+		var labels = yDiff.slice(this._p);
+		// var residuals = this._buildPredictors(labels, this._q);
+		// var residuals = np.zeros([labels.length + this._q, 1]);
+		var residuals = np.zeros([yDiff.length]);
+		this._lags = labels.slice(-this._p);
 		this._initialValue = X.slice(-this._d - this._p, -this._p);
-		var series = np.diff(X, this._d);
-		var { labels, lags, residuals } = this._fitInit(series);
+		// labels = np.reshape(labels, [-1, 1]);
 		var costOld = 0;
-		var n = residuals.length;
-		n = n ? n : lags.length;
-		const ones = np.ones([lags.length, 1]);
+		// var n = residuals.length;
+		// n = n ? n : lags.length;
+		const newAxis = np.ones([lags.length, 1]);
+		const feats = np.hstack([newAxis, lags]);
+		// const sign = np.array([
+		// 	-1,
+		// 	...np.ones(this._p).mul(-1),
+		// 	// ...np.ones(this._q),
+		// 	...np.ones(this._q).mul(-1),
+		// ]).reshape(this._W.shape);
 		for (let epoch = 0; epoch < maxIter; epoch++) {
-			var features = np.hstack([
-				ones.slice(0, n),
-				lags.slice(0, n),
-				residuals
-			]);
-			var { costCurrent, gradient } = super._runEpoch(features, labels.slice(0, n));
-			features = np.hstack([ones, lags]);
-			var arW = this._W.slice(0, this._p + 1);
-			residuals = labels.sub(np.dot(features, arW));
-			residuals = this._buildPredictors(residuals, this._q);
+			// var { costCurrent, gradient } = super._runEpoch(features, labels.slice(0, n));
+			var end, batchX, batchY, batchPredictions, gradient, features, error;
+			for (let start = 0; start < labels.length; start += this._b) {
+				features = np.hstack([
+					// newAxis.slice(0, n),
+					// lags.slice(0, n),
+					feats,
+					// residuals
+					this._buildNLags(residuals, this._q).T,
+				]);
+				end = start + this._b;
+				batchX = features.slice(start, end);
+				// batchX = features.slice(start, end).mul(sign);
+				batchY = labels.slice(start, end);
+				batchPredictions = super.evaluate(batchX.mul(-1));
+				// batchPredictions = batchX.dot(this._W.mul(sign));
+				error = batchY.sub(batchPredictions);
+				// residuals.unshift(...error);
+				residuals.splice(start + 1, error.length, ...error);
+				// residuals = residuals.slice(0, -error.length);
+				gradient = batchX.T.dot(error);
+				// gradient = this._grad(batchX, batchY, batchPredictions);
+				// TODO add nesterov update
+				this._update(gradient, (this._b > 1) ? this._b : labels.length);
+				// this._update(gradient, this._b);
+			}
+			var costCurrent = this._costFn(batchY, batchPredictions, this._b);
+			// features = np.hstack([newAxis, lags]);
+			// var arW = this._W.slice(0, this._p + 1);
+			// residuals = labels.sub(np.dot(features, arW));
+			// residuals = this._buildPredictors(residuals, this._q);
 			if (super._converged(costOld, costCurrent, stopThreshold, gradient)) {
 				break;
 			} else {
@@ -122,8 +160,38 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 			}
 		}
 		if (this._q) {
-			this._residuals = residuals[0].slice(-this._q);
+			// this._residuals = residuals[0].slice(-this._q);
+			this._residuals = residuals.slice(-this._q);
 		}
+	}
+
+	/**
+	 * 
+	 * @param {Array|NDArray} X 
+	 * @returns 
+	 */
+	// _fitInit(X) {
+	// 	var lags = this._buildPredictors(X, this._p);
+	// 	var labels = X.slice(this._p);
+	// 	this._W = np.zeros([this._p + this._q + 1, 1]);
+	// 	// this._b = (this._b) ? this._b : labels.length;
+	// 	this._b = 1;
+	// 	var residuals = this._buildPredictors(labels, this._q);
+	// 	this._lags = labels.slice(-this._p);
+	// 	labels = np.reshape(labels, [-1, 1]);
+	// 	return { labels, lags, residuals };
+	// }
+
+	/**
+	 * 
+	 * @param {Array|NDArray} X 
+	 * @param {number} maxIter 
+	 * @param {number} stopThreshold 
+	 * @returns 
+	 */
+	async fit(X, maxIter = 1024, stopThreshold = 1e-6) {
+		this.fitSync(X, maxIter, stopThreshold);
+		return this;
 	}
 
 	mleSync(X, maxIter = 1024, stopThreshold = 1e-6) {
@@ -227,34 +295,6 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 
 	/**
 	 * 
-	 * @param {Array|NDArray} X 
-	 * @returns 
-	 */
-	_fitInit(X) {
-		var lags = this._buildPredictors(X, this._p);
-		var labels = X.slice(this._p);
-		this._W = np.zeros([this._p + this._q + 1, 1]);
-		this._b = (this._b) ? this._b : labels.length;
-		var residuals = this._buildPredictors(labels, this._q);
-		this._lags = labels.slice(-this._p);
-		labels = np.reshape(labels, [-1, 1]);
-		return { labels, lags, residuals };
-	}
-
-	/**
-	 * 
-	 * @param {Array|NDArray} X 
-	 * @param {number} maxIter 
-	 * @param {number} stopThreshold 
-	 * @returns 
-	 */
-	async fit(X, maxIter = 1024, stopThreshold = 1e-6) {
-		this.fitSync(X, maxIter, stopThreshold);
-		return this;
-	}
-
-	/**
-	 * 
 	 * @param {number} periods 
 	 * @returns 
 	 */
@@ -306,7 +346,7 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 
 module.exports = {
 	ARIMA:
-		(p, d, q, learningRate = .001, KWArgs = {}) => {
+		(p, d, q, learningRate = 1e-3, KWArgs = { batchSize: 1 }) => {
 			return new AutoRegressionIntegratedMovingAverage(p, d, q, learningRate, KWArgs)
 		},
 }

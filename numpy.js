@@ -5,11 +5,11 @@
  * naive compare array
  * https://stackoverflow.com/questions/3115982/how-to-check-if-two-arrays-are-equal-with-javascript/16430730
  * 
- * @param {Array} other 
+ * @param {Array} that 
  * @returns 
  */
-Array.prototype.equalsTo = function (other) {
-	return JSON.stringify(this) == JSON.stringify(other);
+Array.prototype.equalsTo = function (that) {
+	return JSON.stringify(this) == JSON.stringify(that);
 }
 
 /**
@@ -192,7 +192,8 @@ function diff(vector, order = 1) {
 			s - other[idx]
 		);
 	}
-	return self;
+	// return self;
+	return array(self);
 }
 
 /**
@@ -506,12 +507,23 @@ function linspace(start, stop, num = 50) {
  */
 function vstack(elements) {
 	let res = [];
-	let size = shape(elements[0]);
-	if (size.length == 1) {
-		elements.forEach(el => res.push([...el]));
-	} else {
-		elements.forEach(el => res.push(...[...el]));
-	}
+	elements.forEach(el => {
+		el = (el.ndim == 1) ? el : [...el];
+		res.push(...el);
+	});
+	// TODO original sin
+	// let size = shape(elements[0]);
+	// if (size.length == 1) {
+	// 	elements.forEach(el => {
+	// 		// el = el.reshape(el.shape.filter(d => d != 1));
+	// 		res.push([...el])
+	// 	});
+	// } else {
+	// 	elements.forEach(el => {
+	// 		// el = el.reshape(el.shape.filter(d => d != 1));
+	// 		res.push(...[...el])
+	// 	});
+	// }
 	return array(res);
 }
 
@@ -536,97 +548,97 @@ function hstack(elements) {
 
 /**
  * https://stackoverflow.com/questions/7135874/element-wise-operations-in-javascript
- * @param {NDArray|number} other 
+ * @param {NDArray|number} that 
  * @param {callbackfn} op 
  * @returns 
  */
-NDArray.prototype.iOperation = function (other, op) {
-	let sThis = shape(this);
-	if (typeof (other) === "number") {
+NDArray.prototype.iOperation = function (that, op) {
+	let shapeThis = shape(this);
+	if (typeof (that) === "number") {
 		return reshape(
 			this.flatten()
 				.map(el =>
-					op(el, other)
+					op(el, that)
 				),
-			sThis
+			shapeThis
 		);
 	}
-	other = array(other);
-	let sOther = shape(other);
-	if (sThis.equalsTo(sOther)) {
-		other = other.flatten();
+	that = array(that);
+	let shapeThat = shape(that);
+	if (shapeThis.equalsTo(shapeThat)) {
+		that = that.flatten();
 		return reshape(
 			this.flatten()
 				.map((el, i) =>
-					op(el, other[i])
+					op(el, that[i])
 				),
-			sThis
+			shapeThis
 		);
 	} else {
 		// TODO handling broadcasting
-		sThis = resultantShape(sThis, sOther);
-		other = broadcast(other, sThis).flatten();
+		shapeThis = resultantShape(shapeThis, shapeThat);
+		that = broadcast(that, shapeThis).flatten();
 	}
 	return reshape(
-		broadcast(this, sThis).flatten()
+		broadcast(this, shapeThis).flatten()
 			.map((el, i) =>
-				op(el, other[i])
+				op(el, that[i])
 			),
-		sThis);
+		shapeThis);
 }
 
 /**
  * 
- * @param {NDArray} other 
+ * @param {NDArray} that 
  * @returns 
  */
-NDArray.prototype.add = function (other) {
-	return this.iOperation(other, (a, b) => a + b);
+NDArray.prototype.add = function (that) {
+	return this.iOperation(that, (a, b) => a + b);
 }
 
 /**
  * 
- * @param {NDArray} other 
+ * @param {NDArray} that 
  * @returns 
  */
-NDArray.prototype.mul = function (other) {
-	return this.iOperation(other, (a, b) => a * b);
+NDArray.prototype.mul = function (that) {
+	return this.iOperation(that, (a, b) => a * b);
 }
 
 /**
  * 
- * @param {NDArray} other 
+ * @param {NDArray} that 
  * @returns 
  */
-NDArray.prototype.sub = function (other) {
-	return this.iOperation(other, (a, b) => a - b);
+NDArray.prototype.sub = function (that) {
+	return this.iOperation(that, (a, b) => a - b);
 }
 
 /**
  * 
- * @param {NDArray} other 
+ * @param {NDArray} that 
  * @returns 
  */
-NDArray.prototype.div = function (other) {
-	return this.iOperation(other, (a, b) => a / b);
+NDArray.prototype.div = function (that) {
+	return this.iOperation(that, (a, b) => a / b);
 }
 
 /**
  * 
- * @param {NDArray} other 
+ * @param {NDArray} that 
  * @returns 
  */
-NDArray.prototype.equals = function (other) {
-	return this.iOperation(other, (a, b) => a == b);
+NDArray.prototype.equals = function (that) {
+	return this.iOperation(that, (a, b) => a == b);
 }
 
 /**
  * 
- * @param {NDArray} other 
+ * @param {NDArray} that 
  * @returns 
  */
-NDArray.prototype.power = function (other) {
-	return this.iOperation(other, (a, b) => a ** b);
+NDArray.prototype.power = function (that) {
+	return this.iOperation(that, (a, b) => a ** b);
 }
 
 /**
@@ -653,6 +665,15 @@ NDArray.prototype.toArray = function () {
  */
 NDArray.prototype.reshape = function (size) {
 	return reshape(this, size);
+}
+
+/**
+ * 
+ * @param {NDArray} that 
+ * @returns 
+ */
+NDArray.prototype.dot = function (that) {
+	return dot(this, that);
 }
 
 const linalg = {

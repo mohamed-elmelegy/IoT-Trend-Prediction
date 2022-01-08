@@ -20,7 +20,7 @@ class GradientDescent {
 		this._costFn = kwargs["costFunction"];
 		if (!this._costFn) {
 			this._costFn = function (labels, predictions, m = null) {
-				m = 2 * ((m) ? m : labels.length);
+				m = m | labels.length;
 				return np.sum(labels.sub(predictions).power(2)) / m;
 			};
 		}
@@ -73,8 +73,7 @@ class GradientDescent {
 	}
 
 	vt(gradient, m, vt1 = 0) {
-		return gradient.mul(this._alpha)
-			.div(m)
+		return gradient.mul(this._alpha/m)
 			.add(this._gamma * vt1);
 	}
 
