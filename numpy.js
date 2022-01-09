@@ -215,6 +215,11 @@ function mean(vector) {
 	return sum(array(vector)) / vector.length;
 }
 
+/**
+ * 
+ * @param {Array|NDArray} vector 
+ * @returns 
+ */
 function std(vector) {
 	const mu = mean(vector);
 	return sum(array(vector).sub(mu).power(2)) / vector.length;
@@ -443,6 +448,7 @@ function matchDimensions(a, b) {
  * @returns 
  */
 function broadcast(vector, size) {
+	vector = array(vector);
 	let vSize = shape(vector);
 	if (!canBroadcast(vSize, size)) {
 		throw Error("Can not broadcast");
@@ -519,19 +525,6 @@ function vstack(elements) {
 		el = (el.ndim == 1) ? el : [...el];
 		res.push(...el);
 	});
-	// TODO original sin
-	// let size = shape(elements[0]);
-	// if (size.length == 1) {
-	// 	elements.forEach(el => {
-	// 		// el = el.reshape(el.shape.filter(d => d != 1));
-	// 		res.push([...el])
-	// 	});
-	// } else {
-	// 	elements.forEach(el => {
-	// 		// el = el.reshape(el.shape.filter(d => d != 1));
-	// 		res.push(...[...el])
-	// 	});
-	// }
 	return array(res);
 }
 
@@ -552,6 +545,32 @@ function hstack(elements) {
 	}
 	res = elements.map(el => transpose(el));
 	return transpose(vstack(res));
+}
+
+/**
+ * 
+ * @param {CallbackFn} op 
+ * @param  {...any} args 
+ * @returns 
+ */
+NDArray.prototype.apply = function (op, ...args) {
+	const size = shape(this);
+	if (args.length) {
+		var n = args.reduce((m, el) =>
+			m + (typeof (el) === "number")
+			, 0);
+		if (n == args.length) {
+			return reshape(this.flatten().map(el =>
+				op(el, ...args)
+			), size);
+		}
+		args = transpose(args.map(el =>
+			broadcast((el instanceof Array) ? el : [el], size).flatten()
+		));
+		return reshape(this.flatten().map((el, i) => op(el, ...args[i])), size);
+	} else {
+		return reshape(this.flatten().map(el => op(el)), size);
+	}
 }
 
 /**
@@ -582,11 +601,10 @@ NDArray.prototype.iOperation = function (that, op) {
 				),
 			shapeThis
 		);
-	} else {
-		// TODO handling broadcasting
-		shapeThis = resultantShape(shapeThis, shapeThat);
-		that = broadcast(that, shapeThis).flatten();
 	}
+	// handling broadcasting
+	shapeThis = resultantShape(shapeThis, shapeThat);
+	that = broadcast(that, shapeThis).flatten();
 	return reshape(
 		broadcast(this, shapeThis).flatten()
 			.map((el, i) =>
@@ -601,7 +619,7 @@ NDArray.prototype.iOperation = function (that, op) {
  * @returns 
  */
 NDArray.prototype.add = function (that) {
-	return this.iOperation(that, (a, b) => a + b);
+	return this.apply((a, b) => a + b, that);
 }
 
 /**
@@ -610,7 +628,7 @@ NDArray.prototype.add = function (that) {
  * @returns 
  */
 NDArray.prototype.mul = function (that) {
-	return this.iOperation(that, (a, b) => a * b);
+	return this.apply((a, b) => a * b, that);
 }
 
 /**
@@ -619,7 +637,7 @@ NDArray.prototype.mul = function (that) {
  * @returns 
  */
 NDArray.prototype.sub = function (that) {
-	return this.iOperation(that, (a, b) => a - b);
+	return this.apply((a, b) => a - b, that);
 }
 
 /**
@@ -628,7 +646,7 @@ NDArray.prototype.sub = function (that) {
  * @returns 
  */
 NDArray.prototype.div = function (that) {
-	return this.iOperation(that, (a, b) => a / b);
+	return this.apply((a, b) => a / b, that);
 }
 
 /**
@@ -637,7 +655,7 @@ NDArray.prototype.div = function (that) {
  * @returns 
  */
 NDArray.prototype.equals = function (that) {
-	return this.iOperation(that, (a, b) => a == b);
+	return this.apply((a, b) => a == b, that);
 }
 
 /**
@@ -646,7 +664,7 @@ NDArray.prototype.equals = function (that) {
  * @returns 
  */
 NDArray.prototype.power = function (that) {
-	return this.iOperation(that, (a, b) => a ** b);
+	return this.apply((a, b) => a ** b, that);
 }
 
 /**
@@ -684,14 +702,26 @@ NDArray.prototype.dot = function (that) {
 	return dot(this, that);
 }
 
+/**
+ * 	
+ * @returns 
+ */
 NDArray.prototype.sum = function () {
 	return sum(this);
 }
 
+/**
+ * 
+ * @returns 
+ */
 NDArray.prototype.mean = function () {
 	return mean(this);
 }
 
+/**
+ * 
+ * @returns 
+ */
 NDArray.prototype.std = function () {
 	return std(this);
 }
@@ -755,5 +785,5 @@ const random = {
 module.exports = {
 	array, empty, diff, dot, ndim, reshape, shape, sum, transpose, diag, ones,
 	zeros, eye, arange, vstack, hstack, NDArray, linalg, linspace, random,
-	cumsum, mean
+	cumsum, mean, std
 }
