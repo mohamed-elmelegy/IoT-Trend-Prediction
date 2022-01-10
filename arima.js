@@ -11,8 +11,8 @@ const { GradientDescent } = require("./linreg");
 // FIXME the ARIMA should extend linear regression instead
 class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 
-	constructor(order = [1, 0, 0], KWArgs = { learningRate: 1e-3, batchSize: 1 }) {
-		super((KWArgs.learningRate) ? KWArgs.learningRate : 1e-3, KWArgs);
+	constructor(order = [1, 0, 0], KWArgs = { learningRate: 1e-3 }) {
+		super(KWArgs.learningRate || 1e-3, KWArgs);
 		[this._p, this._d, this._q] = order;
 		this._update = function (gradient, m, vt1 = 0) {
 			this._W = this._W.add(this.vt(gradient, m, vt1));
@@ -31,8 +31,8 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 		return this._d;
 	}
 
-	get Const() {
-		return this._W[0];
+	get intercept() {
+		return this.mu * (1 - this.phi.sum());
 	}
 
 	get theta() {
@@ -40,7 +40,7 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 	}
 
 	get phi() {
-		return this._W.slice(1, this._p);
+		return this._W.slice(0, this._p);
 	}
 
 	/**
@@ -93,13 +93,13 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 		// difference the data
 		const yDiff = np.diff(X, this._d);
 		// initialise the fit subroutine
-		var { labels, feats, residuals } = this._fitInit(yDiff);
+		var { labels, lags, residuals } = this._fitInit(yDiff);
 		// initialise cost
 		var costOld = 0;
 		// loop for specified epoch number
 		for (let epoch = 0; epoch < maxIter; epoch++) {
 			// run a single epoch, get the final cost & gradient
-			var { costCurrent, gradient } = this._runEpoch(labels, feats, residuals);
+			var { costCurrent, gradient } = this._runEpoch(labels, lags, residuals);
 			// early stopping condition
 			if (super._converged(costOld, costCurrent, stopThreshold, gradient)) {
 				break;
@@ -108,26 +108,35 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 				costOld = costCurrent;
 			}
 		}
-		// number of observation
-		const n = labels.length;
-		// number of model parameters
-		const k = 1 + (this.Const != 0) + this._p + this._q;
-		// variance of the residuals white noise
-		this.sigma2 = residuals.power(2).sum() / (n - this._p);
-		// initialise scores object
-		this.scores = {};
-		// calculating log likelihood of the data
-		this.scores.LL = -(n / 2) * (1 + Math.log(2 * Math.PI * this.sigma2));
-		// calculating Akaike's Information Criteria
-		this.scores.AIC = 2 * (k - this.scores.LL);
-		// calculating corrected AIC
-		this.scores.AICc = this.scores.AIC + 2 * k * (k + 1) / (n - k - 1);
-		// calculating Bayesian Information Criteria
-		this.scores.BIC = this.scores.AIC + k * (Math.log(n) - 2);
+		this._calculateMetrics(labels, residuals);
 		// keeping residuals for forecasting purposes
 		if (this._q) {
 			this._residuals = residuals.slice(-this._q);
 		}
+	}
+
+	/**
+	 * 
+	 * @param {Array|NDArray} labels 
+	 * @param {Array|NDArray} residuals 
+	 */
+	_calculateMetrics(labels, residuals) {
+		// number of observation
+		const n = labels.length;
+		// number of model parameters
+		const k = 1 + (this.intercept != 0) + this._p + this._q;
+		// variance of the residuals white noise
+		this.sigma2 = residuals.power(2).sum() / (n - this._p);
+		// initialise metrics object
+		this.metrics = {};
+		// calculating log likelihood of the data
+		this.metrics.LL = -(n / 2) * (1 + Math.log(2 * Math.PI * this.sigma2));
+		// calculating Akaike's Information Criteria
+		this.metrics.AIC = 2 * (k - this.metrics.LL);
+		// calculating corrected AIC
+		this.metrics.AICc = this.metrics.AIC + 2 * k * (k + 1) / (n - k - 1);
+		// calculating Bayesian Information Criteria
+		this.metrics.BIC = this.metrics.AIC + k * (Math.log(n) - 2);
 	}
 
 	/**
@@ -181,23 +190,23 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 		 * zero initialisation
 		 * cons: easy to stuck at local minima
 		 */
-		this._W = np.random.random([this._p + this._q + 1]);
+		this._W = np.random.random([this._p + this._q]);
+		// TODO models could be without mean/constant
+		this.mu = X.mean();
+		X = X.sub(this.mu);
 		// build lags AKA feature vector for AR
 		const lags = this._buildNLags(X, this._p);
 		// set labels
 		const labels = X.slice(this._p);
 		// determine the batch size
-		this._b = this._b | labels.length;
+		this._b = this._b || labels.length;
 		// initialise residuals
-		// TODO tested well against ARIMA(p, d, 0), ARIMA(p, d, q); might not against ARIMA(0, d, q)
+		// FIXME tested well against ARIMA(p, d, 0), ARIMA(p, d, q); might not against ARIMA(0, d, q)
 		var residuals = np.zeros([X.length]);
 		// keep lags for forecasting
 		this._lags = labels.slice(-this._p);
-		// adjusting the feature matrix to account for free 'constant' term
-		const newAxis = np.ones([lags.length, 1]);
-		const feats = np.hstack([newAxis, lags]);
 		// return required data
-		return { labels, feats, residuals };
+		return { labels, lags, residuals };
 	}
 
 	/**
@@ -230,9 +239,9 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 		// predict periods one by one
 		for (let i = 0; i < periods; i++) {
 			// prepare a single record for forecasting
-			var X = [1, ...lags.slice(-this._p), ...residuals.slice(-this._q)];
+			var X = [...lags.slice(-this._p), ...residuals.slice(-this._q)];
 			// forecasting
-			var y = this.evaluate(X);//.flatten();
+			var y = this.evaluate(X) + this.intercept;
 			// adding white noise
 			var [e] = tf.randomNormal([1], 0, Math.sqrt(this.sigma2)).arraySync();
 			y += e;
@@ -274,7 +283,7 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 
 module.exports = {
 	ARIMA:
-		([p, d, q], KWArgs = { learningRate: 1e-3, batchSize: 1 }) => {
+		([p, d, q], KWArgs = { learningRate: 1e-3 }) => {
 			return new AutoRegressionIntegratedMovingAverage([p, d, q], KWArgs)
 		},
 }

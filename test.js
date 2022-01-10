@@ -15,7 +15,7 @@ dfd.read_csv("./Data/daily-total-female-births-in-cal.csv").then(df => {
 	var model = ARIMA([1, 1, 1], { learningRate: 1e-5 });
 	return model.fit(data);
 }).then(model => {
-	console.log(model.scores);
+	console.log(model.metrics);
 	return model.forecast(10);
 }).then(preds => {
 	[x, preds] = [tf.tensor(x), tf.tensor(preds)];

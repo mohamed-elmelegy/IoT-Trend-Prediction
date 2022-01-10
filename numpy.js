@@ -483,7 +483,7 @@ function arange(start, end, step) {
 		end = start;
 		start = 0;
 	}
-	step = (step === undefined) ? 1 : step;
+	step = step || 1;
 	if ((end < start) && (step > 0)) {
 		return [];
 	}

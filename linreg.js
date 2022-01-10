@@ -73,7 +73,7 @@ class GradientDescent {
 	}
 
 	vt(gradient, m, vt1 = 0) {
-		return gradient.mul(this._alpha/m)
+		return gradient.mul(this._alpha / m)
 			.add(this._gamma * vt1);
 	}
 
@@ -123,7 +123,7 @@ class GradientDescent {
 
 	_fitInit(X, y) {
 		var nRows = y.length;
-		this._b = (this._b) ? this._b : nRows;
+		this._b = this._b || nRows;
 		// FIXME
 		// var costOld = this._costFn(y.slice(-this._b), np.zeros([this._b]), this._b);
 		var costOld = 0;
