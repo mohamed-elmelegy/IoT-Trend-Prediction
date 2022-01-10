@@ -16,6 +16,10 @@ dfd.read_csv("./Data/daily-total-female-births-in-cal.csv").then(df => {
 	return model.fit(data);
 }).then(model => {
 	console.log(model.metrics);
+	console.log(model.intercept);
+	console.log(model.phi);
+	console.log(model.theta);
+	console.log(model.sigma2);
 	return model.forecast(10);
 }).then(preds => {
 	[x, preds] = [tf.tensor(x), tf.tensor(preds)];

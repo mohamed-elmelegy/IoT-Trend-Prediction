@@ -197,22 +197,29 @@ function diff(vector, order = 1) {
 }
 
 /**
- * FIXME does not work with axis
+ * TODO does not work with axis
  * @param {Array|NDArray} vector 
+ * @param {number} axis
  * @returns 
  */
-function cumsum(vector) {
+function cumsum(vector, axis = null) {
 	var total = 0;
 	return vector.map((el) => total += el);
 }
 
 /**
- * FIXME does not work with axis
- * @param {Array|NDArray} vector 
+ * TODO axis works only for 2D
+ * @param {Array|NDArray} vector
+ * @param {number} axis 
  * @returns 
  */
-function mean(vector) {
-	return sum(array(vector)) / vector.length;
+function mean(vector, axis = null) {
+	if (axis != null) {
+		// TODO supporting only 2D
+		// return sum(array(vector), axis).div(vector[axis].length);
+		return sum(array(vector), axis).div(vector.shape[axis]);
+	}
+	return sum(array(vector)) / prod(vector.shape);
 }
 
 /**
@@ -220,9 +227,32 @@ function mean(vector) {
  * @param {Array|NDArray} vector 
  * @returns 
  */
-function std(vector) {
-	const mu = mean(vector);
-	return sum(array(vector).sub(mu).power(2)) / vector.length;
+function std(vector, axis = null) {
+	var mu = mean(vector, axis);
+	if (axis != null) {
+		// TODO supports only 2D
+		mu = reshape(mu, [-1, 1]);
+		return sum(
+			array(vector).sub(mu).power(2),
+			axis
+		).div(vector.shape[axis]).power(.5);
+	}
+	const sigma2 = sum(array(vector).sub(mu).power(2)) / prod(vector.shape);
+	return Math.sqrt(sigma2);
+}
+
+/**
+ * 
+ * @param {Array|NDArray} vector 
+ * @param {number} axis 
+ * @returns 
+ */
+function prod(vector, axis = null) {
+	vector = array(vector);
+	if (axis != null) {
+		// TODO support higher dimension prod
+	}
+	return vector.flatten().reduce((p, el) => p * el, 1);
 }
 
 /**
@@ -347,7 +377,8 @@ function reshape(vector, size) {
  * @returns 
  */
 function sum(vector, axis = null, initialValue = 0) {
-	if ((ndim(vector) == 1) || axis === null) {
+	vector = array(vector);
+	if ((axis === null) || (ndim(vector) == 1)) {
 		// full array or 1D array
 		return vector.flatten()
 			.reduce(((sum, el) =>
@@ -355,8 +386,9 @@ function sum(vector, axis = null, initialValue = 0) {
 			),
 				initialValue);
 	}
-	// FIXME to avoid breaking
-	return vector;
+	// TODO supporting 2D sum
+	vector = (axis) ? vector : transpose(vector);
+	return vector.map(el => sum(el));
 	// if ((axis < 0) && (-axis <= this.length)) {
 	// 	axis = this.length - axis
 	// }
@@ -706,24 +738,33 @@ NDArray.prototype.dot = function (that) {
  * 	
  * @returns 
  */
-NDArray.prototype.sum = function () {
-	return sum(this);
+NDArray.prototype.sum = function (axis = null, initialValue = 0) {
+	return sum(this, axis, initialValue);
 }
 
 /**
  * 
  * @returns 
  */
-NDArray.prototype.mean = function () {
-	return mean(this);
+NDArray.prototype.mean = function (axis = null) {
+	return mean(this, axis);
 }
 
 /**
  * 
  * @returns 
  */
-NDArray.prototype.std = function () {
-	return std(this);
+NDArray.prototype.std = function (axis = null) {
+	return std(this, axis);
+}
+
+/**
+ * 
+ * @param {number} axis 
+ * @returns 
+ */
+NDArray.prototype.prod = function (axis = null) {
+	return prod(this, axis);
 }
 
 const linalg = {
@@ -785,5 +826,5 @@ const random = {
 module.exports = {
 	array, empty, diff, dot, ndim, reshape, shape, sum, transpose, diag, ones,
 	zeros, eye, arange, vstack, hstack, NDArray, linalg, linspace, random,
-	cumsum, mean, std
+	cumsum, mean, std, prod
 }
