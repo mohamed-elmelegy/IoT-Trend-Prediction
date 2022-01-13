@@ -568,7 +568,7 @@ function vstack(elements) {
 function hstack(elements) {
 	var res;
 	// FIXME edge case
-	if (ndim(elements[0]) == 1) {
+	if (elements.every(el => ndim(el) == 1)) {
 		res = [];
 		elements.forEach(el => {
 			res.push(...[...el])
