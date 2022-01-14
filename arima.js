@@ -81,15 +81,42 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 		throw new Error("Not Implemented yet!");
 	}
 
+	stat(X) {
+		// TODO trying to take statistics into account
+		var { labels, lags, residuals } = this._fitInit(np.array(X));
+		var costOld = 0;
+		var end, batchX, batchY, batchPredictions, gradient, features, error;
+		for (let start = 0; start < labels.length; start += this._b) {
+			features = np.hstack([
+				lags,
+				AutoRegressionIntegratedMovingAverage._buildNLags(residuals, this._q),
+			]);
+			end = start + this._b;
+			batchX = features.slice(start, end);
+			batchY = labels.slice(start, end);
+			batchPredictions = super.evaluate(batchX);
+			error = batchY.sub(batchPredictions);
+			residuals.splice(start - labels.length, error.length, ...error);
+			gradient = batchX.mul(error).add(this._W);
+			var muG = gradient.mean();
+			var sigG = gradient.std();
+			console.log(`muG:${muG};sigG=${sigG}`);
+			gradient = batchX.T.dot(error);
+			// TODO add nesterov update
+			this._update(gradient, (this._b > 1) ? this._b : labels.length);
+		}
+		var costCurrent = this._costFn(batchY, batchPredictions, this._b);
+	}
+
 	/**
 	 * 
 	 * @param {Array|NDArray} X 
 	 * @param {number} maxIter 
 	 * @param {number} stopThreshold 
 	 */
-	fitSync(X, maxIter = 1024, stopThreshold = 1e-6) {
+	fitSync(X, maxIter = 32, stopThreshold = 1e-6) {
 		// initialise the fit subroutine
-		var { labels, lags, residuals } = this._fitInit(X);
+		var { labels, lags, residuals } = this._fitInit(np.array(X));
 		// initialise cost
 		var costOld = 0;
 		// loop for specified epoch number
@@ -192,6 +219,11 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 			gradient = batchX.T.dot(error);
 			// TODO add nesterov update
 			this._update(gradient, (this._b > 1) ? this._b : labels.length);
+			// FIXME
+			// gradient = batchX.mul(error).add(this._W);
+			// var muG = gradient.mean();
+			// var sigG = gradient.std();
+			// console.log(`muG:${muG}\tsigG=${sigG}`);
 		}
 		// calculate cost after one epoch
 		var costCurrent = this._costFn(batchY, batchPredictions, this._b);
@@ -230,7 +262,7 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 	 * @param {number} stopThreshold 
 	 * @returns 
 	 */
-	async fit(X, maxIter = 1024, stopThreshold = 1e-6) {
+	async fit(X, maxIter = 32, stopThreshold = 1e-6) {
 		this.fitSync(X, maxIter, stopThreshold);
 		return this;
 	}
@@ -306,11 +338,12 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 		// TODO cost can't be 0 in update
 		var costOld;
 		// loop for specified epoch number
-		for (let epoch = 0; epoch < 32; epoch++) {
+		// FIXME when researching code in python, this whole function is a workaround
+		for (let epoch = 0; epoch < 4; epoch++) {
 			// run a single epoch, get the final cost & gradient
 			var { costCurrent, gradient } = this._runEpoch(labels, lags, residuals);
 			// early stopping condition
-			if (costOld && super._converged(costOld, costCurrent, 1e-9, gradient)) {
+			if (costOld && super._converged(costOld, costCurrent, 1e-4, gradient)) {
 				break;
 			} else {
 				// update cost for next epoch
@@ -342,7 +375,8 @@ module.exports = {
 	 * @returns 
 	 */
 	ARIMA:
-		([p, d, q], KWArgs = { learningRate: 1e-3 }) => {
+		// ([p, d, q], KWArgs = { learningRate: 1e-3 }) => {
+		([p, d, q], KWArgs = { learningRate: 2 ** -5, batchSize: 1 }) => {
 			return new AutoRegressionIntegratedMovingAverage([p, d, q], KWArgs)
 		},
 }

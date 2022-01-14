@@ -233,7 +233,7 @@ function std(vector, axis = null) {
 	var mu = mean(vector, axis);
 	if (axis != null) {
 		// TODO supports only 2D
-		mu = reshape(mu, [-1, 1]);
+		// mu = reshape(mu, [-1, 1]);
 		return sum(
 			array(vector).sub(mu).power(2),
 			axis
@@ -469,9 +469,11 @@ function resultantShape(size0, size1) {
 function matchDimensions(a, b) {
 	var size = a.length - b.length;
 	if (size < 0) {
-		a.unshift(...ones(-size));
+		// a.unshift(...ones(-size));
+		a.splice(0, a.length, ...b.map(el => a.includes(el) ? el : 1));
 	} else if (size > 0) {
-		b.unshift(...ones(size));
+		// b.unshift(...ones(size));
+		b.splice(0, b.length, ...a.map(el => b.includes(el) ? el : 1));
 	}
 }
 
