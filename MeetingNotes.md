@@ -26,3 +26,42 @@
 1. Test models against several time series datasets
 
 1. Documentation
+
+---
+<br>
+
+# Documentation
+
+1. Intro
+   1. Problem
+   2. Objective
+   3. Scope
+   4. Data
+   5. Application
+2. Comparative Study
+   1. Traditional Approches
+   2. Classic ML Approaches
+   3. DL Approaches
+   4. ARIMA
+3. Technical Manual
+   1. Proposed Method
+      1. Overview
+      2. Mathematical Modeling
+      3. Implementation
+         1. Pure JS
+            1. Code
+            2. Evaluation
+            3. Plots
+         2. TensorFlow JS
+            1. Code
+            2. Evaluation
+            3. Plots
+      4. Retraining Schedule
+   2. Deployment
+      1. Events
+      2. Screenshots
+      3. Example
+4. User Manual
+   1. How to train a model?
+   2. How to evaluate a model?
+   3. How to forecast using a trained model?
