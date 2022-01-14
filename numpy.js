@@ -583,6 +583,22 @@ function hstack(elements) {
 	return transpose(vstack(res));
 }
 
+function min(vector, axis = null) {
+	vector = array(vector);
+	if (axis != null) {
+
+	}
+	return Math.min(...vector.flatten());
+}
+
+function max(vector, axis = null) {
+	vector = array(vector);
+	if (axis != null) {
+
+	}
+	return Math.max(...vector.flatten());
+}
+
 /**
  * 
  * @param {CallbackFn} op 
@@ -607,46 +623,6 @@ NDArray.prototype.apply = function (op, ...args) {
 	} else {
 		return reshape(this.flatten().map(el => op(el)), size);
 	}
-}
-
-/**
- * https://stackoverflow.com/questions/7135874/element-wise-operations-in-javascript
- * @param {NDArray|number} that 
- * @param {callbackfn} op 
- * @returns 
- */
-NDArray.prototype.iOperation = function (that, op) {
-	let shapeThis = shape(this);
-	if (typeof (that) === "number") {
-		return reshape(
-			this.flatten()
-				.map(el =>
-					op(el, that)
-				),
-			shapeThis
-		);
-	}
-	that = array(that);
-	let shapeThat = shape(that);
-	if (shapeThis.equalsTo(shapeThat)) {
-		that = that.flatten();
-		return reshape(
-			this.flatten()
-				.map((el, i) =>
-					op(el, that[i])
-				),
-			shapeThis
-		);
-	}
-	// handling broadcasting
-	shapeThis = resultantShape(shapeThis, shapeThat);
-	that = broadcast(that, shapeThis).flatten();
-	return reshape(
-		broadcast(this, shapeThis).flatten()
-			.map((el, i) =>
-				op(el, that[i])
-			),
-		shapeThis);
 }
 
 /**
@@ -771,6 +747,14 @@ NDArray.prototype.prod = function (axis = null) {
 	return prod(this, axis);
 }
 
+NDArray.prototype.min = function (axis = null) {
+	return min(this, axis);
+}
+
+NDArray.prototype.max = function (axis = null) {
+	return max(this, axis);
+}
+
 const linalg = {
 	/**
 	 * 
@@ -830,5 +814,5 @@ const random = {
 module.exports = {
 	array, empty, diff, dot, ndim, reshape, shape, sum, transpose, diag, ones,
 	zeros, eye, arange, vstack, hstack, NDArray, linalg, linspace, random,
-	cumsum, mean, std, prod
+	cumsum, mean, std, prod, min, max
 }
