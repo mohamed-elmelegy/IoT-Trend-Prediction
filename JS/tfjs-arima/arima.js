@@ -201,12 +201,15 @@ class ARIMA {
 	}
 
 	/**
-	 * Invert differentiated data with order = d, Destationarization Step used for predicted values
+	 * Invert differentiated data with order = d, De-Stationarization Step used for predicted values
 	 * @param {tfjs.Tensor|Array} X 
 	 * 
 	 * @returns {Array}
 	 */
 	_inverseDiff(X) {
+		if (this._d <= 0) {
+			return X;
+		}
 		let history = [...this._keptFeatures];
 		let res = [];
 		for (let i = 0; i < X.length; i++) {
@@ -253,10 +256,19 @@ class ARIMA {
 	 * @returns {Array}
 	 */
 	predictSync(X) {
+		// Predict AutoRegressive results (values)
 		const arPreds = this.arModel.predictSync(X);
+
+		// Predict MovingAverage results (residuals)
 		const maPreds = this.maModel.predictSync(X);
+
+		// Get AR output + MA output 
 		const arimaPreds = tf.add(arPreds, maPreds).arraySync();
+
+		// Inverse diff operation which happened before fitting the model
+		// to get back prediction values in the same range of input data
 		const finalPreds = this._inverseDiff(arimaPreds);
+
 		return finalPreds;
 	}
 

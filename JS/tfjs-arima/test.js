@@ -64,9 +64,9 @@ arima.fit(xTrain, params).then((modelFit) => {
 }).then(preds => {
     console.time("Total Predict Time");
     console.log(
-        "\nActual Test Data:",
+        "\nActual Test Data Sample:",
         xTest.slice(0, 5),
-        "\nPredictions:",
+        "\nPredictions Sample:",
         preds.slice(0, 5)
     );
     console.timeEnd("Total Predict Time");
