@@ -12,7 +12,24 @@ dfd.read_csv("./Data/daily-total-female-births-in-cal.csv").then(df => {
 }).then(data => {
 	data = np.array(data.slice(0, -10));
 	x = data.slice(-10);
-	var model = ARIMA([1, 1, 1], { learningRate: 1e-5 });
+	var model = ARIMA([1, 1, 1], { learningRate: 1e-3 });
+	return model.fit(data);
+}).then(model => {
+	console.log(model.metrics);
+	console.log(model.intercept);
+	console.log(model.phi);
+	console.log(model.theta);
+	console.log(model.sigma2);
+	// model.update(x);
+	return model.forecast(10);
+}).then(console.log).catch(console.error);
+
+dfd.read_csv("./Data/daily-total-female-births-in-cal.csv").then(df => {
+	return df["births"].tensor.array();
+}).then(data => {
+	data = np.array(data.slice(0, -10));
+	x = data.slice(-10);
+	var model = ARIMA([0, 0, 1], { learningRate: 1e-3 });
 	return model.fit(data);
 }).then(model => {
 	console.log(model.metrics);
@@ -21,16 +38,20 @@ dfd.read_csv("./Data/daily-total-female-births-in-cal.csv").then(df => {
 	console.log(model.theta);
 	console.log(model.sigma2);
 	return model.forecast(10);
-}).then(preds => {
-	[x, preds] = [tf.tensor(x), tf.tensor(preds)];
-	const mae = tf.metrics.meanAbsoluteError(x, preds).arraySync();
-	const mape = tf.metrics.meanAbsolutePercentageError(x, preds).arraySync();
-	const mse = tf.metrics.meanSquaredError(x, preds).arraySync();
-	const rmse = Math.sqrt(mse);
-	const nrmse = rmse / x.mean().arraySync();
-	console.log(`mae:\t${mae}`);
-	console.log(`mape:\t${mape}`);
-	console.log(`mse:\t${mse}`);
-	console.log(`rmse:\t${rmse}`);
-	console.log(`nrmse:\t${nrmse}`);
-}).catch(console.error);
+}).then(console.log).catch(console.error);
+
+dfd.read_csv("./Data/daily-total-female-births-in-cal.csv").then(df => {
+	return df["births"].tensor.array();
+}).then(data => {
+	data = np.array(data.slice(0, -10));
+	x = data.slice(-10);
+	var model = ARIMA([0, 1, 1], { learningRate: 1e-3 });
+	return model.fit(data);
+}).then(model => {
+	console.log(model.metrics);
+	console.log(model.intercept);
+	console.log(model.phi);
+	console.log(model.theta);
+	console.log(model.sigma2);
+	return model.forecast(10);
+}).then(console.log).catch(console.error);
