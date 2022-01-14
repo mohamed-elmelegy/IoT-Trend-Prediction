@@ -48,9 +48,11 @@ class NDArray extends Array {
 		}
 		switch (ndim(args)) {
 			case 1:
-				var res = this.slice();
+				// var res = this.slice();
+				var res = [...this.slice()];
 				args.forEach(idx => {
-					res = res[idx];
+					// res = res[idx];
+					res = res.at(idx);
 				});
 				return res;
 			default:
