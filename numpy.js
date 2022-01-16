@@ -216,12 +216,13 @@ function cumsum(vector, axis = null) {
  * @returns 
  */
 function mean(vector, axis = null) {
+	vector = array(vector);
 	if (axis != null) {
 		// TODO supporting only 2D
 		// return sum(array(vector), axis).div(vector[axis].length);
-		return sum(array(vector), axis).div(vector.shape[axis]);
+		return sum(vector, axis).div(vector.shape[axis]);
 	}
-	return sum(array(vector)) / prod(vector.shape);
+	return sum(vector) / prod(vector.shape);
 }
 
 /**
@@ -230,10 +231,10 @@ function mean(vector, axis = null) {
  * @returns 
  */
 function std(vector, axis = null) {
+	vector = array(vector);
 	var mu = mean(vector, axis);
 	if (axis != null) {
 		// TODO supports only 2D
-		// mu = reshape(mu, [-1, 1]);
 		return sum(
 			array(vector).sub(mu).power(2),
 			axis
@@ -808,6 +809,34 @@ const random = {
 				Math.random()
 			),
 			size);
+	},
+	/**
+	 * TODO add p support 
+	 * FIXME built over lodash
+	 * @param {number|Array|NDArray} vector 
+	 * @param {Array|NDArray} size 
+	 * @param {boolean} replace 
+	 * @param {number|Array|NDArray} p 
+	 * @returns
+	 */
+	choice: function (vector, size = null, replace = true, p = null) {
+		if (typeof (vector) === "number") {
+			vector = arange(vector);
+		}
+		if (size) {
+			var length = prod(size);
+			if (!replace && (length > vector.length)) {
+				throw Error("Cannot take a larger sample than population with replace is false");
+			}
+			var res = [];
+			do {
+				res.push(...vector.sort(() => 0.5 - Math.random()));
+			} while (replace && (length > res.length));
+			res = res.slice(0, length);
+			return reshape(res, size);
+		} else {
+			return vector[Math.floor(Math.random() * vector.length)];
+		}
 	}
 }
 
