@@ -172,7 +172,7 @@ model
 
 `async forecast(periodsNumber)`
 
-- `periods`: number of future periods to forecast into
+- `periodsNumber`: number of future periods to forecast into
 
 ---
 

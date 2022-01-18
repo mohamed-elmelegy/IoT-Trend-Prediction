@@ -42,15 +42,19 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 	}
 
 	get theta() {
-		return this._W.slice(-this._q);
+		if (this._q) {
+			return this._W.slice(-this._q);
+		}
 	}
 
 	get phi() {
-		return this._W.slice(0, this._p);
+		if (this._p) {
+			return this._W.slice(0, this._p);
+		}
 	}
 
 	/**
-	 * FIXME should be static
+	 * 
 	 * @param {Array} X 
 	 * @param {number} n 
 	 * @returns 
@@ -61,20 +65,6 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 				np.arange(n, X.length),
 				np.arange(1, n + 1),
 			) : [];
-	}
-
-	/**
-	 * 
-	 * @param {Array|NDArray} X 
-	 * @param {number} nCols 
-	 * @returns 
-	 */
-	static _buildPredictors(X, nCols) {
-		var predictors = [];
-		for (let idx = 1; idx <= nCols; idx++) {
-			predictors.push(...X.slice(nCols - idx, -idx));
-		}
-		return np.reshape(predictors, [-1, nCols]);
 	}
 
 	/**
@@ -92,21 +82,21 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 	 * @param {Array|NDArray} X 
 	 * @param {number} maxIter 
 	 */
-	fitMLE(X, maxIter = 1024) {
+	fitStatSync(X, maxIter = 1024) {
 		// initialise the fit subroutine
 		var { labels, lags, residuals } = this._fitInit(np.array(X));
-		// initialise cost
-		var costOld = 0;
+		this._runEpoch(labels, lags, residuals);
+		// var costOld = 0;
 		var weights = np.array([this._W]);
 		var stop = 0;
-		// ensuring minimum coverage of 1024
-		const size = [Math.max(32, parseInt(1024 / maxIter))];
+		const size = [32];
+		const replace = labels.length < 32;
 		// loop for specified epoch number
 		for (let epoch = 0; epoch < maxIter; epoch++) {
-			var idx = np.random.choice(labels.length, size);
+			var idx = np.random.choice(labels.length, size, replace);
 			// run a single epoch, get the final cost & gradient
 			var end, batchX, batchY, batchPredictions, gradient, features, error;
-			for (let start = 0; start < labels.length; start += this._b) {
+			for (let start = 0; start < labels.length; start += size[0]) {
 				// combine lags & residuals into a single matrix for vectorised operation
 				features = np.hstack([
 					lags,
@@ -130,7 +120,7 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 				this._update(gradient, (this._b > 1) ? this._b : labels.length);
 			}
 			// calculate cost after one epoch
-			costOld = weights.mean();
+			var costOld = weights.mean();
 			weights.push(this._W);
 			var costCurrent = weights.mean();
 			// early stopping condition
@@ -139,6 +129,7 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 			if (stop >= 4) {
 				break;
 			} else {
+				stop = 0;
 				// update cost for next epoch
 				costOld = costCurrent;
 			}
@@ -149,6 +140,17 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 		if (this._q) {
 			this._residuals = residuals.slice(-this._q);
 		}
+	}
+
+	/**
+	 * 
+	 * @param {Array|NDArray} X 
+	 * @param {number} maxIter 
+	 * @returns 
+	 */
+	async fitStat(X, maxIter = 1024) {
+		this.fitStatSync(X, maxIter);
+		return this;
 	}
 
 	/**
@@ -281,7 +283,7 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 		// number of model parameters
 		const k = 1 + (this.intercept != 0) + this._p + this._q;
 		// variance of the residuals white noise
-		this.sigma2 = residuals.power(2).sum() / (n - this._p);
+		this.sigma2 = residuals.power(2).sum() / n;
 		// initialise metrics object
 		this.metrics = {};
 		// calculating log likelihood of the data
@@ -402,7 +404,8 @@ class AutoRegressionIntegratedMovingAverage extends GradientDescent {
 	 * @returns 
 	 */
 	async update(trueLags) {
-		return this.updateSync(trueLags);
+		this.updateSync(trueLags);
+		return this;
 	}
 }
 
