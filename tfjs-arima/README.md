@@ -11,10 +11,8 @@ This module implements the following models from ARIMA family:
 - ARMA(p,q).
 - ARIMA(p, d, q)
 
-## Files
+## `arima.js` Module
 
-
-### `arima.js`
 
 Provides ARIMA model APIs. The full equation for the non-seasonal arima model is
 
@@ -35,28 +33,19 @@ Usage:
 
 ```js
 const { ARIMA } = require("./arima");
-const tf = require("@tensorflow/tfjs");
 
 var data = [...];
 
 var model = ARIMA(p, d, q);
 
-let params = {
-    epochs: 100,
-    batchSize: 32,
-    validationSplit: .2,
-    callbacks: tf.callbacks.earlyStopping({ monitor: 'val_loss', patience: 3 }),
-    shuffle: false
-};
-
 model
-    .fit(data, params)
+    .fit(data)
     .then(() => {
-        let steps = 5;
-        return arima.predict(steps);
+        let stepsNumber = 5;
+        return arima.predict(stepsNumber);
     })
   .catch(console.error)
-  .finally(event.end);
+  .finally(console.log);
 ```
 
 `ARIMA(p, d, q)`
@@ -69,10 +58,23 @@ model
 
 ---
 
-`async fit(X, params)`
+`async fit(X, params?, learningRate?)`
 
-- `X`: the time series to fit against.
-- `params` (object): This object includes all available hyperparameters and on-training events which provided in TensorFlow.js by default, So for more details about available keys please check `args` fields in `fit()` method parameters in [TensorFlow.js Docs](https://js.tensorflow.org/api/latest/#tf.LayersModel.fit). Here are some of them:
+- `X` (Array): the time series to fit against.
+- `learningRate` (number): Optional. The hyperparameter &alpha; for `Gradient Descent` optimizers, here it's for `Adam` optimizer. Defaults to $0.01$ or $1e-2$
+- `params` (object): Optional. This object includes all available hyperparameters and on-training events which provided in TensorFlow.js by default, So for more details about available keys please check `args` fields in `fit()` method parameters in [TensorFlow.js Docs](https://js.tensorflow.org/api/latest/#tf.LayersModel.fit). The default params are:
+  ```JSON
+  {
+    epochs: 2048,
+    shuffle: false,
+    validationSplit: .2,
+    callbacks: tf.callbacks.earlyStopping({
+      monitor: 'val_loss',
+      patience: 3
+    })
+  }
+  ```
+  And for more customization, Here are other params:
   - `epochs`: (number) Integer number of times to iterate over the training data arrays.
   - `batchSize`: (number) Number of samples per gradient update. If unspecified, it will default to $32$.
   - `callbacks`: List of callback functions to be called during training. For example:
@@ -99,9 +101,17 @@ Returns `{Promise<tf.History>}`
 
 `async predict(stepsNumber)`
 
-- `stepsNumber`: number of future steps to forecast.<br>
+- `stepsNumber`: number of future steps to forecast. Defaults to $1$ step.<br>
 
-Returns `{Promise<Array>}`
+Returns `{Promise<Array<number>>}`
+
+---
+
+`predict(stepsNumber)`
+
+- `stepsNumber` (number): number of future steps to forecast. Defaults to $1$ step.<br>
+
+Returns `{Array<number>}`
 
 ---
 
@@ -111,7 +121,7 @@ Returns `{Promise<Array>}`
 - `yPredicted` (Array): the predicted of forecasted values with some steps. Length must be the for `yTrue`<br>
 - `fn` (Function): Optional param to use in the evaluation of model behaviour. Defaults to `tf.metrics.meanSquaredError`. <br>
 
-Returns `{Promise<tf.Tensor>|Number|Array}`
+Returns `{Promise<number|Array<number>|tf.Tensor>>}`
 
 ---
 
@@ -124,7 +134,7 @@ This example includes:
 - How many epochs it takes from the given $2000$ to finish training?
 - Predicting number of upcoming steps equals to `xTest` length.
 - How long it takes to predict number of upcoming steps equals to `xTest` length?
-- Evaluation of ARIMA model using `MeanSquaredError (MSE)` metric.
+- Evaluation of model predictions using `MeanSquaredError (MSE)` metric.
 
 ### Code:
 
@@ -171,7 +181,7 @@ arima.fit(xTrain, params).then((modelFit) => {
     console.log(
         "\nActual Test Data Sample:",
         xTest.slice(0, 5),
-        "\nPredictions Sample:",
+        "\nPredictions Of The Sample:",
         preds.slice(0, 5)
     );
     console.timeEnd("Total Predict Time");
@@ -188,31 +198,31 @@ arima.fit(xTrain, params).then((modelFit) => {
 
 ### Results Summary:
 
-> The results of this example are obtained from testing the model on a local environment and [this time series dataset](./data.txt) with size 365 records.
+The results of this example are obtained from testing the model on a local environment and [this time series dataset](./data.txt) with size of $365$ records.
 
-```
-  ARIMA(2, 2, 2) Summary:
-  ----------------------
-  Total Fit Time: 485.274ms
-  AR stopped training after just: (4) epochs
+```bat
+ARIMA(2, 2, 2) Summary:
+----------------------
+Total Fit Time: 461.385ms
+AR stopped training after just: #4 epochs
 
-  Actual Test Data Sample Of (5): [ 
-    42, 
-    38, 
-    47, 
-    38, 
-    36 
-  ]
-  Predictions Sample Of The Same (5): [
-    44.83704291284084,
-    42.89202205091715,
-    44.843544685747474,
-    42.89952243026346,
-    44.85235397005454
-  ]
-  Total Predict Time: 4.004ms
+Actual Test Data Sample: [
+  42, 
+  38, 
+  47, 
+  38, 
+  36 
+]
+Predictions Of The Same Sample: [
+  43.97266125679016,
+  42.25989615917206,
+  43.92159089818597,
+  42.238057140260935,
+  43.955897983163595
+]
+Total Predict Time: 4.158ms
 
-  Prediction MSE Loss:  42.57068634033203
+Prediction MSE Loss:  41.750205993652344
 ```
 
 

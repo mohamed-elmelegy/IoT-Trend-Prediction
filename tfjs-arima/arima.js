@@ -181,7 +181,7 @@ class ARIMA {
 		})
 	};
 
-	#LEARNING_RATE = 1e-3;
+	#LEARNING_RATE = 1e-2;
 
 	/**
 	 * 
