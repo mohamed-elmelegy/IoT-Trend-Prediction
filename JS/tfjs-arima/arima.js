@@ -5,11 +5,13 @@
 const tf = require("@tensorflow/tfjs");
 
 class LinearRegression {
-	DEFAULT_PARAMS = {
-		epochs: 1024,
-		shuffle: false,
-		validationSplit: .2
-	};
+
+	/**
+	 * Linear Model private fields
+	 */
+	#shifts = 0;
+	#modelName = "";
+
 
 	/**
 	 * @param {number} shifts 
@@ -19,67 +21,71 @@ class LinearRegression {
 		if (!(Number.isInteger(shifts) && shifts >= 0)) {
 			throw "Error: `shifts` must be 0 or positive Integer";
 		}
-		this._shifts = shifts;
-		this._modelName = modelName;
+		this.#shifts = shifts;
+		this.#modelName = modelName;
 	}
 
 	get shifts() {
-		return this._shifts;
+		return this.#shifts;
 	}
 
 	get modelName() {
-		return this._modelName;
+		return this.#modelName;
 	}
 
 	/**
 	 * Start a Linear model training
-	 * @param {tfjs.Tensor|Array} X 
+	 * @param {Array} X 
 	 * @param {object} params 
 	 * 
 	 * @returns {Promise<tf.History>}
 	 */
-	fit(X, params = {}, learningRate=0.001) {
+	fit(X, params, learningRate) {
 		let [features, labels] = this.shiftInput(X);
-		const sliceWindow = -1 * this._shifts;
+		const sliceWindow = -1 * this.#shifts;
 		this._keptFeatures = X.slice(sliceWindow);
 
-		this.buildModel([features.shape[1]],
-			tf.train.adam(learningRate),
-			"meanSquaredError",
-			[tf.metrics.meanSquaredError]
-		);
+		// Build & compile Linear model
+		const inputShape = [features.shape[1]];
+		const optimizer = tf.train.adam(learningRate);
+		const lossFunction = "meanSquaredError";
+		const metrics = [tf.metrics.meanSquaredError];
+		this.#buildModel(inputShape, optimizer, lossFunction, metrics);
 
+		// Start training of Linear model 
 		return this.model.fit(features, labels, params);
 	}
 
 	/**
 	 * Predict values of a trained Linear model 
+	 * X could be stepsNumber by default or features matrix when (usingFeatures=true)
 	 * @param {Array|tfjs.Tensor|number} X 
 	 * @param {Boolean} usingFeatures 
 	 * 
 	 * @returns {Array}
 	 */
-	predictSync(steps, usingFeatures = false) {
+	predictSync(X, usingFeatures = false) {
 		if (usingFeatures) {
-			return this.model.predict(steps).reshape([-1, 1]).arraySync();
+			return this.model.predict(X).reshape([-1, 1]).arraySync();
 		}
 		let res = [...this._keptFeatures];
-		let featureShape = [1, this._shifts];
+		let featureShape = [1, this.#shifts];
 		const sliceWindow = -1 * featureShape[1];
-		if (this._shifts <= 0) {
+		if (this.#shifts <= 0) {
 			featureShape = [-1];
 		}
 
-		for (let s = 0; s < steps; s++) {
+		for (let s = 0; s < X; s++) {
 			let features = tf.tensor(res.slice(sliceWindow)).reshape(featureShape);
 			let yHat = this.model.predict(features).arraySync();
 			res.push(yHat[0][0]);
 		}
-		return res.slice(-steps);
+		return res.slice(-X);
 	}
 
 	/**
 	 * Async Predict values of a trained Linear model 
+	 * X could be stepsNumber by default or features matrix when (usingFeatures=true)
 	 * @param {Array|tfjs.Tensor|number} X 
 	 * @param {Boolean} usingFeatures 
 	 * 
@@ -96,18 +102,18 @@ class LinearRegression {
 	 * @returns {Array<tf.Tensor>}
 	 */
 	shiftInput(X) {
-		if (this._shifts == 0) {
+		if (this.#shifts == 0) {
 			return [
 				tf.tensor(X).reshape([-1, 1]),
 				tf.tensor(X).reshape([-1, 1])
 			];
 		}
-		const featureShape = [(X.length - this._shifts), this._shifts];
+		const featureShape = [(X.length - this.#shifts), this.#shifts];
 		const labelShape = [-1, 1];
-		let labels = X.slice(this._shifts);
+		let labels = X.slice(this.#shifts);
 		let features = [];
-		for (let i = 1; i <= this._shifts; i++) {
-			features.push(X.slice(this._shifts - i, -i));
+		for (let i = 1; i <= this.#shifts; i++) {
+			features.push(X.slice(this.#shifts - i, -i));
 		}
 
 		return [
@@ -120,12 +126,12 @@ class LinearRegression {
 	 * Build single unit neural network that acts like Linear model
 	 * @param {Array} inputShape 
 	 * @param {Object} optimizer 
-	 * @param {string} loss 
+	 * @param {string} lossFunction 
 	 * @param {Array} metrics 
 	 */
-	buildModel(inputShape,
-		optimizer = tf.train.adam(0.01),
-		loss = "meanSquaredError",
+	#buildModel(inputShape,
+		optimizer = tf.train.adam(1e-3),
+		lossFunction = "meanSquaredError",
 		metrics = [tf.metrics.meanSquaredError]) {
 
 		// Define input, which has a size of inputShape
@@ -141,12 +147,12 @@ class LinearRegression {
 		// Obtain the output symbolic tensor by applying the layers on the inputLayer.
 		const output = denseLayer1.apply(inputLayer);
 
-		// Create the model based on the inputs.
+		// Create the model based on the input shape.
 		this.model = tf.model({ inputs: inputLayer, outputs: output });
 
 		this.model.compile({
 			optimizer: optimizer,
-			loss: loss,
+			loss: lossFunction,
 			metrics: metrics,
 		});
 	}
@@ -155,6 +161,28 @@ class LinearRegression {
 
 
 class ARIMA {
+	
+	/**
+	 * ARIMA private fields
+	 */
+	#p = 0;
+	#d = 0;
+	#q = 0;
+	#arModel = {};
+	#maModel = {};
+
+	#DEFAULT_PARAMS = {
+		epochs: 2048,
+		shuffle: false,
+		validationSplit: .2,
+		callbacks: tf.callbacks.earlyStopping({
+			monitor: 'val_loss',
+			patience: 3
+		})
+	};
+
+	#LEARNING_RATE = 1e-3;
+
 	/**
 	 * 
 	 * @param {number} p 
@@ -162,39 +190,47 @@ class ARIMA {
 	 * @param {number} q 
 	 */
 	constructor(p, d, q) {
-		this._p = p;
-		this._d = d;
-		this._q = q;
-		this.arModel = new LinearRegression(this._p, "Auto Regression");
-		this.maModel = new LinearRegression(this._q, "Moving Average");
+		this.#p = p;
+		this.#d = d;
+		this.#q = q;
+		this.#arModel = new LinearRegression(this.#p, "Auto Regression");
+		this.#maModel = new LinearRegression(this.#q, "Moving Average");
 	}
 
 	get p() {
-		return this._p;
+		return this.#p;
 	}
 
 	get q() {
-		return this._q;
+		return this.#q;
 	}
 
 	get d() {
-		return this._d;
+		return this.#d;
+	}
+
+	get arModel() {
+		return this.#arModel;
+	}
+
+	get maModel() {
+		return this.#maModel;
 	}
 
 	/**
 	 * Differentiate data with order = d (stationarization step)
-	 * @param {tfjs.Tensor|Array} X 
+	 * @param {Array} X 
 	 * 
 	 * @returns {Array}
 	 */
-	_diff(X) {
-		if (this._d <= 0) {
+	#diff(X) {
+		if (this.#d <= 0) {
 			return [...X];
 		}
 
 		let diffX = [];
-		for (let d = this._d; d < X.length; d++) {
-			let value = X[d] - X[d - this._d];
+		for (let d = this.#d; d < X.length; d++) {
+			let value = X[d] - X[d - this.#d];
 			diffX.push(value);
 		}
 		return diffX;
@@ -202,19 +238,19 @@ class ARIMA {
 
 	/**
 	 * Invert differentiated data with order = d, De-Stationarization Step used for predicted values
-	 * @param {tfjs.Tensor|Array} X 
+	 * @param {Array} X 
 	 * 
 	 * @returns {Array}
 	 */
-	_inverseDiff(X) {
-		if (this._d <= 0) {
+	#inverseDiff(X) {
+		if (this.#d <= 0) {
 			return X;
 		}
 		let history = [...this._keptFeatures];
 		let res = [];
 		for (let i = 0; i < X.length; i++) {
 			let yHat = X[i];
-			let historyIdx = history.length - this._d;
+			let historyIdx = history.length - this.#d;
 			let historyVal = history[historyIdx];
 			let inverseVal = yHat + historyVal;
 
@@ -227,59 +263,60 @@ class ARIMA {
 
 	/**
 	 * Start ARIMA model training
-	 * @param {tfjs.Tensor|Array} X 
+	 * @param {Array} X 
 	 * @param {object} params 
+	 * @param {number} learningRate 
 	 * 
 	 * @returns {Promise<tf.History>}
 	 */
-	fit(X, params = {}) {
+	fit(X, params = this.#DEFAULT_PARAMS, learningRate=this.#LEARNING_RATE) {
 		this._keptFeatures = X;
-		let diffX = this._diff(X);
+		let diffX = this.#diff(X);
 		// Fitting AutoRegression(AR) Part
-		return this.arModel.fit(diffX, params).then(() => {
-			let [features, labels] = this.arModel.shiftInput(diffX);
+		return this.#arModel.fit(diffX, params, learningRate).then(() => {
+			let [features, labels] = this.#arModel.shiftInput(diffX);
 
 			// Getting residuals (Noise) from AR
-			let arPreds = this.arModel.predictSync(features, true);
+			let arPreds = this.#arModel.predictSync(features, true);
 			let residuals = tf.sub(labels, arPreds).arraySync();
 
 			// Fitting MovingAverage (MA) Part
-			return this.maModel.fit(residuals, params);
+			return this.#maModel.fit(residuals, params, learningRate);
 		});
 	}
 
 
 	/**
-	 * Predicts the next values by the number of steps given (X)
-	 * @param {number} X 
+	 * Predicts the next values by the number of steps given (stepsNumber)
+	 * @param {number} stepsNumber 
 	 * 
 	 * @returns {Array}
 	 */
-	predictSync(X) {
+	predictSync(stepsNumber=1) {
 		// Predict AutoRegressive results (values)
-		const arPreds = this.arModel.predictSync(X);
+		const arPreds = this.#arModel.predictSync(stepsNumber);
 
 		// Predict MovingAverage results (residuals)
-		const maPreds = this.maModel.predictSync(X);
+		const maPreds = this.#maModel.predictSync(stepsNumber);
 
 		// Get AR output + MA output 
 		const arimaPreds = tf.add(arPreds, maPreds).arraySync();
 
 		// Inverse diff operation which happened before fitting the model
 		// to get back prediction values in the same range of input data
-		const finalPreds = this._inverseDiff(arimaPreds);
+		const finalPreds = this.#inverseDiff(arimaPreds);
 
 		return finalPreds;
 	}
 
 	/**
-	 * Async Predicts the next values by the number of steps given (X)
-	 * @param {number} X 
+	 * Async Predicts the next values by the number of steps given (stepsNumber)
+	 * @param {number} stepsNumber 
 	 * 
 	 * @returns {Promise<Array>}
 	 */
-	predict(X) {
-		return Promise.resolve(this.predictSync(X));
+	predict(stepsNumber=1) {
+		return Promise.resolve(this.predictSync(stepsNumber));
 	}
 
 	/**

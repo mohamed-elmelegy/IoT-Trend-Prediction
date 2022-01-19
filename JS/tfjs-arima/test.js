@@ -1,13 +1,7 @@
-#! /usr/bin/env node
-/**
- *
- */
-// "use strict";
-
 const tf = require("@tensorflow/tfjs");
 const { ARIMA } = require("./arima");
 
-// Time Series Dataset
+// 1-D Time Series Dataset
 const X = [
     35, 32, 30, 31, 44, 29, 45, 43, 38, 27, 38, 33, 55, 47, 45, 37, 50,
     43, 41, 52, 34, 53, 39, 32, 37, 43, 39, 35, 44, 38, 24, 23, 31, 44,
@@ -43,10 +37,14 @@ let params = {
     epochs: 2500,
     batchSize: parseInt(0.2 * xTrain.length),
     validationSplit: .2,
-    callbacks: tf.callbacks.earlyStopping({ monitor: 'val_loss', patience: 3 }),
+    callbacks: tf.callbacks.earlyStopping({ 
+      monitor: 'val_loss', 
+      patience: 3 
+    }),
     shuffle: false,
     verbose: 1
 };
+let learningRate = 1e-2;
 
 // ARIMA model instance
 let arima = ARIMA(2, 2, 2);
@@ -54,7 +52,7 @@ let arima = ARIMA(2, 2, 2);
 console.time("Total Fit Time");
 
 // Start ARIMA training
-arima.fit(xTrain, params).then((modelFit) => {
+arima.fit(xTrain, params, learningRate).then((modelFit) => {
     console.log(`ARIMA(${arima.p}, ${arima.d}, ${arima.q}) Summary:\n----------------------`);
     console.timeEnd("Total Fit Time");
     console.log("AR stopped training after just: #", modelFit.history.loss.length, "epochs");
