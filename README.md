@@ -12,9 +12,9 @@ Here is a JavaScript implementation for the following models from `ARIMA` family
 - ARIMA(p, d, q)
 
 In two different ways of implementation:
+
 - Pure JS [Full Documentation](./Code/pureJS/README.md) | [Code](./Code/pureJS/arima.js)
 - TensorFlow JS [Full Documentation](./Code/tensorflowJS/README.md) | [Code](./Code/tensorflowJS/arima.js)
-
 
 It provides ARIMA model APIs. The full equation for the non-seasonal arima model is:
 
@@ -37,24 +37,23 @@ It supports working on [Master of Things (MoT)](http://www.masterofthings.com) p
 
 <img src="https://images.wuzzuf-data.net/files/company_covers/thumbs/9476685373d323b29752206014247a63.jpeg">
 
-
 ---
 
 ## **Credits**
 
 This project was carried out under the supervision of:
-- [Information Technology Institute (ITI)](https://www.iti.gov.eg/) 
+
+- [Information Technology Institute (ITI)](https://www.iti.gov.eg/)
 - [SpimeSenseLabs](http://www.spimesenselabs.com/) Company
 
-
 <img alt="ITI Logo" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTWDMFZ4fFvJV7D94Kt6dyYqen2t8I2f9WTymVVDKlSoJDzoMCkQb4ZjLrLx5XYbF-kl-c&usqp=CAU" width="300" height="93"> <img alt="SpimeSenseLabs Logo" src="https://images.wuzzuf-data.net/files/company_logo/SpimeSenseLabs-Egypt-8358.jpeg">
- 
+
 , as a graduation project from [9-month professional training program in Artificial Intelligence](https://ai.iti.gov.eg/epita/ai-engineer/) powerded by the [Egyptian Ministry of Communications and Information Technology (MCIT)](https://www.mcit.gov.eg/) in cooperation with [EPITA](https://www.epita.fr/en/) in France.
 
 <img alt="EPITA Logo" src="https://ai.iti.gov.eg/wp-content/uploads/2020/08/logo-epita.png">
 
-
 ### **Team**
+
 - Hossam Khairullah. [LinkedIn](https://www.linkedin.com/in/hossam-khir-allah/)
 - Mohamed Ashraf El-Melegy. [LinkedIn](https://www.linkedin.com/in/mohamedashrafelmelegy/)
 - Mostafa Mohamed Fathy. [LinkedIn](https://www.linkedin.com/in/mostafamohamedfathy/)

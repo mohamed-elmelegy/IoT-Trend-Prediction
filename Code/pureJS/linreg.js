@@ -1,6 +1,12 @@
 #! /usr/bin/node
 /**
  * TODO update the file to match tensorflow
+ * 
+ * 2x + 3y = 0
+ * 3x - y = 5
+ * [[2, 3],[3, -1]] * [x, y] = [0, 5]
+ * 
+ * 
  */
 "use strict";
 
@@ -16,7 +22,7 @@ class GradientDescent {
 		this._alpha = learningRate;
 		this._W = kwargs["weights"];
 		this._gamma = kwargs["momentum"] | 0;
-		this._b = kwargs["batchSize"];
+		this._b = kwargs["batchSize"]; // vanilla, batch, mini-batch, stochastic
 		this._costFn = kwargs["costFunction"];
 		if (!this._costFn) {
 			this._costFn = function (labels, predictions, m = null) {
@@ -33,7 +39,8 @@ class GradientDescent {
 			}
 		}
 		// TODO nesterov update
-		this._update = (kwargs["nesterov"]) ? this.updateNesterov : function (gradient, m, vt1 = 0) {
+		this._update = //(kwargs["nesterov"]) ? this.updateNesterov : 
+		function (gradient, m, vt1 = 0) {
 			this._W = this._W.sub(this.vt(gradient, m, vt1));
 		};
 	}
@@ -72,6 +79,7 @@ class GradientDescent {
 		throw Error("Method not implemented yet")
 	}
 
+	// TODO supporting velocity of momentum
 	vt(gradient, m, vt1 = 0) {
 		return gradient.mul(this._alpha / m)
 			.add(this._gamma * vt1);
