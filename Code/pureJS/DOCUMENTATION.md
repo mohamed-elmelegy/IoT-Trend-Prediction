@@ -380,7 +380,7 @@ const { ARIMA } = require("./arima");
 
 var series = [...];
 var model = ARIMA([1, 2, 1]);
-model.fitMLESync(series, 64);
+model.fitStatSync(series, 64);
 ```
 
 ---

@@ -48,10 +48,8 @@ class NDArray extends Array {
 		}
 		switch (ndim(args)) {
 			case 1:
-				// var res = this.slice();
 				var res = [...this.slice()];
 				args.forEach(idx => {
-					// res = res[idx];
 					res = res.at(idx);
 				});
 				return res;
@@ -781,15 +779,15 @@ const linalg = {
 	 * @returns 
 	 */
 	toeplitz: function (c, r = null) {
-		if (r) {
-			// TODO handle row not null
-		} else {
-			r = [...c].reverse();
-			var l = c.length;
-			return c.map((_, i) =>
-				[...r.slice(-1 - i), ...c.slice(1, l - i)]
-			);
+		if (!r) {
+			r = [...c].reverse(); // conjugate
 		}
+		//  else {
+		// }
+		var l = c.length;
+		return c.map((_, i) =>
+			[...r.slice(-1 - i), ...c.slice(1, l - i)]
+		);
 	}
 }
 

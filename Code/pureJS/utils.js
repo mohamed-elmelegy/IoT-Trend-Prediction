@@ -49,3 +49,7 @@ function diff(tensor, ord = 1) {
 	}
 	return self;
 }
+
+module.exports = {
+	extractIdxTensor1D, extractTensor2D
+}
