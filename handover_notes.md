@@ -16,6 +16,8 @@ Working with the **change in the value** rather than the actual value. It is the
 
 $
 Y'=(y_t-y_{t-1})|_{t=1}^{t=T}
+\\
+% Y'=Y|_1^T-Y|_0^{T-1}
 $
 
 Important property of this operation is that it is recursive in nature; meaning that to make a differencing of order 2, you do a differencing on the **actual vector**, then apply differencing again but this time on the resulting **differenced vector**. That would map to working on the **change in the _change_ of the value**.
@@ -78,6 +80,8 @@ The ARMA is the combination of `AR` & `MA` models.
 
 $
 \Phi(B)y_t=\Theta(B)\varepsilon_t
+\\
+y_{t+1}=\Phi(B)y_t+\Theta(B)\varepsilon_t
 $
 
 The ARIMA simply considers the differencing before applying `ARMA`.
@@ -169,3 +173,5 @@ By definition, &epsilon; should be noise around the mean of the series, but in o
 $
 LL=-\frac{1}{2}(T\ln(2\pi\sigma^2)+\frac{1}{\sigma^2}\sum_{t=0}^T\varepsilon_t)
 $
+
+> for projects, include the model code (either pure or tf) in the pages global functions

@@ -173,8 +173,8 @@ class ARIMA {
 
 	#DEFAULT_PARAMS = {
 		epochs: 2048,
-		shuffle: false,
-		validationSplit: .2,
+		shuffle: false, // time series is ordered
+		validationSplit: .2, // cross validation 20% test -> validation score 
 		callbacks: tf.callbacks.earlyStopping({
 			monitor: 'val_loss',
 			patience: 3
@@ -269,16 +269,21 @@ class ARIMA {
 	 * 
 	 * @returns {Promise<tf.History>}
 	 */
-	fit(X, params = this.#DEFAULT_PARAMS, learningRate=this.#LEARNING_RATE) {
+	fit(X, params = this.#DEFAULT_PARAMS, learningRate=this.#LEARNING_RATE) { 
+		// inputs => neuron(AR) => neuron(MA) => output
+		// pureJS: inputs (extract residuals) => model(AR,MA) => output
+		// tfJS: inputs => model(AR, MA:const) model(AR:const, MA) => output
+		// y_t = phi_p y_t-p + theta_q e_t-q;
+		// e_t = y_t - y'_t (phi_p y_t-p + theta_q e_t-q=0)
 		this._keptFeatures = X;
-		let diffX = this.#diff(X);
+		let yPrime = this.#diff(X);
 		// Fitting AutoRegression(AR) Part
-		return this.#arModel.fit(diffX, params, learningRate).then(() => {
-			let [features, labels] = this.#arModel.shiftInput(diffX);
+		return this.#arModel.fit(yPrime, params, learningRate).then(() => {
+			let [features, labels] = this.#arModel.shiftInput(yPrime);
 
 			// Getting residuals (Noise) from AR
-			let arPreds = this.#arModel.predictSync(features, true);
-			let residuals = tf.sub(labels, arPreds).arraySync();
+			let arPreds = this.#arModel.predictSync(features, true); // predictSync of LinearRegression
+			let residuals = tf.sub(labels, arPreds).arraySync(); // observed
 
 			// Fitting MovingAverage (MA) Part
 			return this.#maModel.fit(residuals, params, learningRate);
@@ -300,7 +305,7 @@ class ARIMA {
 		const maPreds = this.#maModel.predictSync(stepsNumber);
 
 		// Get AR output + MA output 
-		const arimaPreds = tf.add(arPreds, maPreds).arraySync();
+		const arimaPreds = tf.add(arPreds, maPreds).arraySync(); // Array(10) arr1[i]+arr2[i] 
 
 		// Inverse diff operation which happened before fitting the model
 		// to get back prediction values in the same range of input data
